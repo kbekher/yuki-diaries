@@ -7,5 +7,5 @@ export const site = {
   /** IANA time zone used to display post dates (and the admin scheduler hint). */
   timeZone: process.env.NEXT_PUBLIC_SITE_TIMEZONE || "Europe/Paris",
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-  description: "Здесь будет то, о чём неловко говорить.",
+  description: "Yuki Diaries — личный блог.",
 } as const;

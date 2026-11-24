@@ -57,7 +57,7 @@ async function SearchResults({
   const query = (Array.isArray(raw) ? raw[0] : (raw ?? "")).trim();
 
   if (query.length < 2) {
-    return <p className="text-fg-muted text-pretty">{dict.search.hint}</p>;
+    return null;
   }
 
   const results = await searchPosts(query);

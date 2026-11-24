@@ -185,13 +185,9 @@ export function NewsletterForm({
             id={statusId}
             role={state.status === "error" ? "alert" : undefined}
             aria-live="polite"
-            className={clsx("mt-2.5 min-h-5 text-sm", state.status === "error" ? "text-(--tc-red)" : "text-fg-subtle")}
+            className={clsx(state.status === "error" && "mt-2.5 text-sm text-(--tc-red)")}
           >
-            {state.status === "error" ? (
-              <span key={`error:${state.message}`}>{state.message}</span>
-            ) : (
-              <span key="privacy">{labels.privacy}</span>
-            )}
+            {state.status === "error" && <span key={`error:${state.message}`}>{state.message}</span>}
           </p>
         </form>
       )}

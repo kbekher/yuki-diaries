@@ -7,10 +7,9 @@ import { PostLabel } from "./post-label";
 import { PostImage } from "./post-image";
 
 /**
- * "Последние записи" row: a text column (label, serif title, excerpt, pill, optional small image) next to a collage
- * of the post's images (all greyscale, colour on hover). `flip` puts the text on the right (desktop only).
- * Image count drives the layout: 0 → text-only row with a larger title; 1 → one wide image; 2 → tall + one;
- * 3+ → tall + two (a 4th image sits under the text on desktop, non-flipped rows only).
+ * "Последние записи" row: a text column (label, serif title, excerpt, pill) next to ONE image (the first of
+ * `post.images`, greyscale, colour on hover). `flip` puts the text on the right (desktop only).
+ * No image → text-only row with a larger title.
  *
  * The title is the row's focusable link; the pill and the collage are mouse shortcuts to the same URL.
  */
@@ -26,8 +25,7 @@ export function SeriesRow({
   priority?: boolean;
 }) {
   const href = `/posts/${post.slug}`;
-  const count = Math.min(post.images.length, 3);
-  const mini = !flip && post.images.length >= 4;
+  const count = Math.min(post.images.length, 1);
 
   const text = (
     <div className={clsx("flex flex-col", count > 0 && flip && "lg:order-2")}>
@@ -60,11 +58,6 @@ export function SeriesRow({
           <ArrowRight aria-hidden className="pill-arrow size-4" strokeWidth={1.75} />
         </Link>
       </div>
-      {mini && (
-        <Link href={href} tabIndex={-1} aria-hidden className="mt-10 hidden lg:block">
-          <PostImage post={post} index={3} tone="bw" sizes="380px" className="h-[200px] rounded-[1.125rem]" />
-        </Link>
-      )}
     </div>
   );
 
@@ -72,50 +65,17 @@ export function SeriesRow({
     return <article className="border-t border-border pt-10">{text}</article>;
   }
 
-  const sizesHalf = "(min-width: 1024px) 380px, 50vw";
-
   return (
-    <article className={clsx("grid gap-8 lg:gap-6", flip ? "lg:grid-cols-[2fr_1fr]" : "lg:grid-cols-[1fr_2fr]")}>
+    <article className={clsx("grid gap-8 lg:items-center lg:gap-10", "lg:grid-cols-[1fr_1.4fr]")}>
       {text}
-      <Link
-        href={href}
-        tabIndex={-1}
-        aria-hidden
-        className={clsx(
-          "group grid h-[300px] gap-3 sm:h-[400px] sm:gap-4 lg:h-[440px]",
-          count === 1 ? "grid-cols-1" : "grid-cols-2 grid-rows-2",
-          flip && "lg:order-1",
-        )}
-      >
-        {count === 1 ? (
-          <PostImage
-            post={post}
-            tone="bw"
-            priority={priority}
-            sizes="(min-width: 1024px) 780px, 100vw"
-            className="h-full rounded-[1.125rem]"
-          />
-        ) : (
-          <>
-            <PostImage
-              post={post}
-              tone="bw"
-              priority={priority}
-              sizes={sizesHalf}
-              className="row-span-2 h-full min-h-0 rounded-[1.125rem]"
-            />
-            <PostImage
-              post={post}
-              index={1}
-              tone="bw"
-              sizes={sizesHalf}
-              className={clsx("min-h-0 rounded-[1.125rem]", count === 2 && "row-span-2 h-full")}
-            />
-            {count >= 3 && (
-              <PostImage post={post} index={2} tone="bw" sizes={sizesHalf} className="min-h-0 rounded-[1.125rem]" />
-            )}
-          </>
-        )}
+      <Link href={href} tabIndex={-1} aria-hidden className={clsx("group block", flip && "lg:order-1")}>
+        <PostImage
+          post={post}
+          tone="bw"
+          priority={priority}
+          sizes="(min-width: 1024px) 700px, 100vw"
+          className="aspect-[3/2] w-full rounded-[1.125rem]"
+        />
       </Link>
     </article>
   );

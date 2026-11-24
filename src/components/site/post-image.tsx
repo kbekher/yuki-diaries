@@ -5,7 +5,7 @@ import { CoverImage, RemoteImage } from "./cover-image";
 /**
  * One of a post's summary images (`post.images[index]`) filling a positioned frame. The cover keeps its alt and
  * blur placeholder; body images are decorative here (the post title next to them names the link).
- * `tone`: "duo" = duotone on the theme accent, "bw" = greyscale that regains colour on hover.
+ * `tone`: "bw" = greyscale that regains colour on hover.
  */
 export function PostImage({
   post,
@@ -17,7 +17,7 @@ export function PostImage({
 }: {
   post: PostSummary;
   index?: number;
-  tone: "duo" | "bw";
+  tone: "bw";
   sizes: string;
   priority?: boolean;
   className?: string;
@@ -29,7 +29,7 @@ export function PostImage({
     <div
       className={clsx(
         "relative overflow-hidden bg-bg-sunken",
-        tone === "duo" ? "duotone" : "bw",
+        tone,
         className,
       )}
     >

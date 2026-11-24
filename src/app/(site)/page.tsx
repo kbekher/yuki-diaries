@@ -79,8 +79,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
 /**
  * Two-tone hero: the band is the page's inverse surface (`.on-band` remaps the tokens; `data-hero-band` also
- * tints the sticky header while the band is under it). Brand wordmark, CTA, two short text columns and a tall
- * duotone portrait; without a portrait the layout falls back to two balanced columns.
+ * tints the sticky header while the band is under it). Brand block (label, wordmark, CTA) next to a wider
+ * natural-colour portrait; without a portrait the brand block spans the full width.
  */
 function HeroBand({ dict, portrait, hasPosts }: { dict: Dictionary; portrait: Cover | null; hasPosts: boolean }) {
   const [first, ...rest] = site.name.split(" ");
@@ -88,7 +88,7 @@ function HeroBand({ dict, portrait, hasPosts }: { dict: Dictionary; portrait: Co
     <section data-hero-band aria-labelledby="hero-title" className="on-band">
       <div
         className={`${WRAP} grid gap-8 pt-6 pb-10 sm:pt-10 sm:pb-16 lg:items-stretch lg:gap-10 ${
-          portrait ? "lg:grid-cols-[1.35fr_0.9fr_0.85fr]" : "lg:grid-cols-[1.35fr_1fr]"
+          portrait ? "lg:grid-cols-[1fr_1.15fr]" : ""
         }`}
       >
         <div className="flex flex-col motion-safe:animate-[fade-up_800ms_var(--ease-out-expo)_both]">
@@ -110,18 +110,13 @@ function HeroBand({ dict, portrait, hasPosts }: { dict: Dictionary; portrait: Co
           )}
         </div>
 
-        <div className="grid gap-4 text-[0.875rem] leading-[1.6] text-fg-muted sm:grid-cols-2 lg:flex lg:flex-col lg:justify-between lg:py-3 motion-safe:animate-[fade-up_800ms_var(--ease-out-expo)_80ms_both]">
-          <p className="max-w-[18rem] text-pretty">{site.description}</p>
-          <p className="max-w-[18rem] text-pretty">{dict.home.heroNote}</p>
-        </div>
-
         {portrait && (
           <figure className="motion-safe:animate-[fade-in_1000ms_var(--ease-apple)_150ms_both]">
-            <div className="duotone relative h-[380px] overflow-hidden rounded-[1.125rem] sm:h-[460px] lg:h-[520px]">
+            <div className="relative h-[380px] overflow-hidden rounded-[1.125rem] sm:h-[460px] lg:h-[520px]">
               <CoverImage
                 cover={{ ...portrait, alt: portrait.alt || dict.home.heroPortraitAlt }}
                 priority
-                sizes="(min-width: 1200px) 330px, (min-width: 1024px) 28vw, 100vw"
+                sizes="(min-width: 1280px) 640px, (min-width: 1024px) 52vw, 100vw"
               />
             </div>
             <PhotoCredit cover={portrait} dict={dict} className="mt-2.5 text-left" />

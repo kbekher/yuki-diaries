@@ -66,7 +66,13 @@ export function SeriesRow({
   }
 
   return (
-    <article className={clsx("grid gap-8 lg:items-center lg:gap-10", "lg:grid-cols-[1fr_1.4fr]")}>
+    <article
+      className={clsx(
+        "grid gap-8 lg:items-center lg:gap-10",
+        // The image always gets the wider track, on whichever side it sits.
+        flip ? "lg:grid-cols-[1.4fr_1fr]" : "lg:grid-cols-[1fr_1.4fr]",
+      )}
+    >
       {text}
       <Link href={href} tabIndex={-1} aria-hidden className={clsx("group block", flip && "lg:order-1")}>
         <PostImage

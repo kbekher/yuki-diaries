@@ -9,7 +9,15 @@
  * Text handed to `typographText` may contain OBJECT_CHAR (U+FFFC) for things that must never change
  * (inline code, hard breaks, inline nodes). Rules never create or remove that character.
  */
-import type { Locale } from "@/lib/i18n/config";
+import type { Locale, TextLanguage } from "@/lib/i18n/config";
+
+/** Languages the typography functions know: the DB locales plus the post-language list (ru / en / fr). */
+export type TypoLang = Locale | TextLanguage;
+
+/** Narrow no-break space (U+202F): French thin space inside « guillemets » and before ; : ! ?. */
+export const NNBSP = "\u202F";
+/** Languages with Russian-style typography (NBSP after short words, NBSP before an em dash, …). */
+const isCyr = (lang: TypoLang) => lang === "ru" || lang === "uk";
 
 export const NBSP = "\u00A0";
 export const OBJECT_CHAR = "\uFFFC";
@@ -23,21 +31,24 @@ const LL = "\\p{Ll}";
 type QuoteSet = { open: [string, string]; close: [string, string] };
 
 /** Outer and nested quote marks per locale. ru/uk: «ёлочки» with nested „лапки“; en: “curly” with nested ‘single’. */
-export const QUOTES: Record<Locale, QuoteSet> = {
+export const QUOTES: Record<TypoLang, QuoteSet> = {
   ru: { open: ["«", "„"], close: ["»", "“"] },
   uk: { open: ["«", "„"], close: ["»", "“"] },
   en: { open: ["“", "‘"], close: ["”", "’"] },
+  // fr: « guillemets » with nested “ ”; the narrow spaces inside « » are added separately (see `frenchSpacing`).
+  fr: { open: ["«", "“"], close: ["»", "”"] },
 };
 
 /** Characters after which a quote is an OPENING one (locale-specific opening quotes included). */
-const OPENING_CONTEXT: Record<Locale, RegExp> = {
+const OPENING_CONTEXT: Record<TypoLang, RegExp> = {
   ru: /[\s([{<«„—–\-/\u00A0\uFFFC]/,
   uk: /[\s([{<«„—–\-/\u00A0\uFFFC]/,
   en: /[\s([{<“‘—–\-/\u00A0\uFFFC]/,
+  fr: /[\s([{<«“—–\-/\u00A0\u202F\uFFFC]/,
 };
 
 /** Is a straight quote typed after `before` an opening quote? */
-export function isOpeningContext(before: string, locale: Locale): boolean {
+export function isOpeningContext(before: string, locale: TypoLang): boolean {
   if (before.length === 0) return true;
   return OPENING_CONTEXT[locale].test(before[before.length - 1]);
 }
@@ -46,7 +57,7 @@ export function isOpeningContext(before: string, locale: Locale): boolean {
  * Current nesting depth of double quotes in `text` (count of unclosed outer/inner quotes),
  * considering both locale-specific marks and straight quotes.
  */
-export function quoteDepth(text: string, locale: Locale): number {
+export function quoteDepth(text: string, locale: TypoLang): number {
   const { open, close } = QUOTES[locale];
   let depth = 0;
   for (let i = 0; i < text.length; i++) {
@@ -58,19 +69,21 @@ export function quoteDepth(text: string, locale: Locale): number {
 }
 
 /** Replacement for a straight double quote typed at the end of `before` (live input rule). */
-export function smartDoubleQuote(before: string, locale: Locale): string {
+export function smartDoubleQuote(before: string, locale: TypoLang): string {
   const { open, close } = QUOTES[locale];
   const depth = quoteDepth(before, locale);
   if (isOpeningContext(before, locale)) {
     // en nests “ … ‘ … ’ … ” but single quotes are typed separately; keep double quotes double in en.
-    return locale === "en" ? open[0] : open[Math.min(depth, 1)];
+    const mark = locale === "en" ? open[0] : open[Math.min(depth, 1)];
+    return mark === "«" && locale === "fr" ? `«${NNBSP}` : mark;
   }
-  if (depth <= 0) return close[0];
-  return locale === "en" ? close[0] : close[Math.min(depth - 1, 1)];
+  if (depth <= 0) return locale === "fr" ? `${NNBSP}${close[0]}` : close[0];
+  const mark = locale === "en" ? close[0] : close[Math.min(depth - 1, 1)];
+  return mark === "»" && locale === "fr" ? `${NNBSP}»` : mark;
 }
 
 /** Replacement for a straight single quote typed at the end of `before`: apostrophe or (en) opening ‘. */
-export function smartSingleQuote(before: string, locale: Locale): string {
+export function smartSingleQuote(before: string, locale: TypoLang): string {
   if (locale === "en" && isOpeningContext(before, locale)) return "‘";
   return "’";
 }
@@ -79,7 +92,7 @@ export function smartSingleQuote(before: string, locale: Locale): string {
  * Normalize all double quotes in a block of text: straight and "foreign" curly quotes become the locale's
  * marks with correct nesting. Leaves the text unchanged when quotes are unbalanced (conservative).
  */
-export function normalizeQuotes(text: string, locale: Locale): string {
+export function normalizeQuotes(text: string, locale: TypoLang): string {
   const { open, close } = QUOTES[locale];
   // Quote-like characters we are allowed to re-derive.
   const candidates = locale === "en" ? /["“”«»„]/ : /["“”„«»]/;
@@ -128,6 +141,8 @@ const ABBREVIATIONS = new Set([
   "коп", "мин", "сек", "напр", "проф", "доц", "акад", "св", "кв", "обл", "р", "ч", "с", "т.е", "т.д", "т.п", "т.к", "і", "ін", "тис", "грн",
   // en
   "e.g", "i.e", "etc", "vs", "mr", "mrs", "ms", "dr", "st", "no", "jr", "sr", "approx", "inc", "ltd", "fig", "p", "pp",
+  // fr
+  "mme", "mlle", "mm", "pr", "cf", "env", "av", "bd", "éd", "vol", "c.-à-d", "c-à-d", "apr", "av.j.-c", "n°", "ex",
 ]);
 
 /**
@@ -137,7 +152,7 @@ const ABBREVIATIONS = new Set([
 export function isSentenceStart(before: string): boolean {
   const text = before.replace(/\u00A0/g, " ");
   if (text.trim() === "") return true;
-  const tail = /(\S*?)([.!?…])[»”"’)]*\s+$/u.exec(text);
+  const tail = /(\S*?)([.!?…])[\u202F]?[»”"’)]*\s+$/u.exec(text);
   if (!tail) return false;
   const [, word, mark] = tail;
   if (mark === "…") return false; // the thought continues
@@ -154,7 +169,7 @@ export function isSentenceStart(before: string): boolean {
 
 /* ───────────────────────── No-break spaces (ru/uk) ───────────────────────── */
 
-const SHORT_WORDS: Partial<Record<Locale, string[]>> = {
+const SHORT_WORDS: Partial<Record<TypoLang, string[]>> = {
   ru: [
     "а", "в", "во", "и", "к", "ко", "о", "об", "от", "с", "со", "у", "я", "не", "ни", "на", "по", "за", "из", "до",
     "но", "да", "же", "ли", "бы", "мы", "вы", "он", "то", "из-за", "из-под",
@@ -162,7 +177,7 @@ const SHORT_WORDS: Partial<Record<Locale, string[]>> = {
   uk: ["а", "в", "і", "й", "з", "у", "о", "та", "на", "до", "за", "по", "не", "ні", "із", "зі", "що", "як", "я", "ви", "ми", "он", "це"],
 };
 /** Particles bound to the PREVIOUS word (no-break space before them). */
-const TRAILING_PARTICLES: Partial<Record<Locale, string[]>> = {
+const TRAILING_PARTICLES: Partial<Record<TypoLang, string[]>> = {
   ru: ["же", "ли", "бы", "ль", "б", "ж"],
   uk: ["ж", "же", "б", "би", "бо"],
 };
@@ -186,9 +201,10 @@ type Rule = [RegExp, string | ((...args: string[]) => string)];
  * Full typographic cleanup of ONE text block (paragraph/heading). Pure and idempotent:
  * `typographText(typographText(x)) === typographText(x)`.
  */
-export function typographText(input: string, locale: Locale, options: TypographOptions = {}): string {
+export function typographText(input: string, locale: TypoLang, options: TypographOptions = {}): string {
   const { nbsp = true, capitalize = true } = options;
-  const cyr = locale !== "en";
+  const cyr = isCyr(locale);
+  const fr = locale === "fr";
   let text = input;
 
   // Never touch anything that looks like a URL or e-mail: protect them first.
@@ -220,13 +236,14 @@ export function typographText(input: string, locale: Locale, options: TypographO
     [/(\S)[ \u00A0]*--[ \u00A0]*/g, "$1 — "],
     [/(\S)[ \u00A0]+[-–][ \u00A0]+/g, "$1 — "],
     [/(\S)[ \u00A0]+—(?=\S)/g, "$1 — "],
-    [/^(?:-|–|--)[ \u00A0]+/g, `—${NBSP}`],
+    [/^(?:-|–|--)[ \u00A0]+/g, `—${locale === "en" ? " " : NBSP}`],
     [/(^|[^\d\-–\p{L}])(\d{1,4})-(\d{1,4})(?![\d\-–])/gu, "$1$2–$3"],
 
     // Punctuation spacing: no space before , . ! ? : ; … ) » ” (but keep smileys like " :)" " ;)").
-    [/[ \u00A0]+([,.!?;:…])(?![)(DPdp])/g, "$1"],
-    [/[ \u00A0]+([)\]»”])/g, "$1"],
-    [/([(\[«„])[ \u00A0]+/g, "$1"],
+    // (French keeps — and normalizes — the space before ; : ! ? and inside « », see `frenchSpacing` below.)
+    fr ? [/[ \u00A0\u202F]+([,.…])/g, "$1"] : [/[ \u00A0]+([,.!?;:…])(?![)(DPdp])/g, "$1"],
+    fr ? [/[ \u00A0]+([)\]”])/g, "$1"] : [/[ \u00A0]+([)\]»”])/g, "$1"],
+    fr ? [/([(\[])[ \u00A0]+/g, "$1"] : [/([(\[«„])[ \u00A0]+/g, "$1"],
     // Space after , ; : ! ? when directly followed by a letter.
     [new RegExp(`([,;!?])(?=${L})`, "gu"), "$1 "],
     [new RegExp(`(${L}{2,}):(?=${L}{2,})`, "gu"), "$1: "],
@@ -246,6 +263,12 @@ export function typographText(input: string, locale: Locale, options: TypographO
   if (locale === "en") {
     // Remaining single straight quotes: opening ‘ after whitespace, otherwise apostrophe/closing ’.
     text = text.replace(/(^|[\s(\[“])'/g, "$1‘").replace(/'/g, "’");
+    // The pronoun "I" and its contractions: "i" → "I", "i'm" → "I’m".
+    text = text.replace(/(^|[\s(“‘—–])i(?=$|[\s,.!?;:)”’]|[’'](?:m|ll|ve|d)\b)/g, "$1I");
+  }
+  if (fr) {
+    text = text.replace(/'/g, "’");
+    text = frenchSpacing(text);
   }
 
   if (cyr) {
@@ -274,6 +297,12 @@ export function typographText(input: string, locale: Locale, options: TypographO
     text = text.replace(/([№§]) ?(?=\d)/g, `$1${NBSP}`);
   }
 
+  if (nbsp && fr) {
+    // "50 %", "20 €", "5 km": the number stays with its unit.
+    text = text.replace(/(\d) (?=[%‰°€$£])/g, `$1${NBSP}`);
+    text = text.replace(/(\d) (?=(?:km|cm|mm|kg|mg|ml|cl|min|h)(?![\p{L}\p{N}]))/gu, `$1${NBSP}`);
+  }
+
   if (capitalize) {
     text = capitalizeSentences(text);
   }
@@ -281,6 +310,18 @@ export function typographText(input: string, locale: Locale, options: TypographO
   // Restore protected tokens.
   text = text.replace(/\u0000(\d+)\u0000/g, (_, i: string) => protectedTokens[Number(i)] ?? "");
   return text;
+}
+
+/**
+ * French spacing: narrow no-break space (U+202F) inside « » and before ; : ! ?
+ * Never inside URLs/e-mails (protected by the caller), times ("12:30"), smileys (":)") or between "?!" pairs.
+ */
+export function frenchSpacing(text: string): string {
+  let out = text.replace(/«[ \u00A0\u202F]*/g, `«${NNBSP}`).replace(/[ \u00A0\u202F]*»/g, `${NNBSP}»`);
+  const prev = "[^\\s\\u00A0\\u202F!?;:…\\u0000\\uFFFC]";
+  out = out.replace(new RegExp(`(${prev})[ \\u00A0\\u202F]*([!?;:])(?=$|[\\s\\u00A0\\u202F»”!?…])`, "gu"), `$1${NNBSP}$2`);
+  out = out.replace(new RegExp(`(${prev})[ \\u00A0\\u202F]*([!?])(?=\\))`, "gu"), `$1${NNBSP}$2`);
+  return out;
 }
 
 /** Uppercase the first letter of each sentence (conservative, see `isSentenceStart`). */
@@ -307,7 +348,7 @@ export function shouldCapitalizeAt(before: string, rest: string): boolean {
   // One-letter words ("в", "я", "I") only when they are real words, not list markers like "a)".
   if (word.length === 1 && !/^[\s\u00A0]/.test(rest.slice(1))) return false;
   if (/^[a-z]/.test(word) && /[\/@.]/.test(rest.slice(word.length, word.length + 1))) return false; // "example.com"
-  const core = before.replace(/[«„“"(]+$/u, "");
+  const core = before.replace(/[«„“"(]+[\u202F\u00A0]?$/u, "");
   if (core.replace(/[\s\u00A0—–-]/g, "") === "") return true; // block start (incl. dialogue dash)
   if (!/[\s\u00A0]$/.test(core)) return false;
   return isSentenceStart(core);

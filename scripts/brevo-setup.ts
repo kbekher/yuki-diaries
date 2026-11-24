@@ -2,13 +2,14 @@
  * One-command Brevo setup: creates (or updates, matched by name) the blog's email templates and prints
  * the values to put into Vercel.
  *
- *   pnpm brevo:setup -- --sender you@example.com [--name "Сара"] [--list SARAS_BLOG_NEWSLETTER]
+ *   pnpm brevo:setup -- --sender you@example.com [--name "Yuki"] [--list YUKI_DIARIES_NEWSLETTER]
  *
  * Needs BREVO_API_KEY (from the shell or .env.local). Safe to run repeatedly.
  *
  * Templates (HTML in emails/):
- *  - "Подтверждение подписки — Блог Сары"  → double opt-in (tag "optin", contains {{ doubleoptin }})
- *  - "Новая запись — Блог Сары"            → reusable base for new-post campaigns
+ *  - "Подтверждение подписки — Yuki Diaries"  → double opt-in (tag "optin", contains {{ doubleoptin }})
+ *  - "Новая запись — Yuki Diaries"            → reusable base for new-post campaigns
+ * Templates created under the old «… — Блог Сары» names are renamed in place (same IDs, nothing to change in Vercel).
  */
 import "./load-env";
 import { readFileSync } from "node:fs";
@@ -23,8 +24,10 @@ function arg(name: string): string | undefined {
 
 const apiKey = process.env.BREVO_API_KEY?.trim();
 const senderEmail = arg("sender") ?? process.env.BREVO_SENDER_EMAIL;
-const senderName = arg("name") ?? process.env.BREVO_SENDER_NAME ?? "Сара";
-const listName = arg("list") ?? "SARAS_BLOG_NEWSLETTER";
+const senderName = arg("name") ?? process.env.BREVO_SENDER_NAME ?? "Yuki";
+const listName = arg("list") ?? "YUKI_DIARIES_NEWSLETTER";
+/** Names the list had before the rename — still recognised so the ID is found either way. */
+const LEGACY_LIST_NAMES = ["SARAS_BLOG_NEWSLETTER"];
 
 type Template = { id: number; name: string; isActive: boolean; tag?: string };
 type Sender = { id: number; name: string; email: string; active: boolean };
@@ -60,7 +63,10 @@ async function allTemplates(): Promise<Template[]> {
   }
 }
 
-async function upsertTemplate(def: { name: string; subject: string; file: string; tag?: string }, existing: Template[]) {
+async function upsertTemplate(
+  def: { name: string; legacyNames?: string[]; subject: string; file: string; tag?: string },
+  existing: Template[],
+) {
   const htmlContent = readFileSync(join(process.cwd(), "emails", def.file), "utf8");
   const payload = {
     templateName: def.name,
@@ -70,10 +76,12 @@ async function upsertTemplate(def: { name: string; subject: string; file: string
     isActive: true,
     ...(def.tag ? { tag: def.tag } : {}),
   };
-  const found = existing.find((t) => t.name === def.name);
+  // Same template under its current or a previous name → update (and rename) it in place, keeping its ID.
+  const found =
+    existing.find((t) => t.name === def.name) ?? existing.find((t) => def.legacyNames?.includes(t.name));
   if (found) {
     await brevo("PUT", `/smtp/templates/${found.id}`, payload);
-    return { id: found.id, action: "updated" };
+    return { id: found.id, action: found.name === def.name ? "updated" : `renamed from «${found.name}» and updated` };
   }
   const created = await brevo<{ id: number }>("POST", "/smtp/templates", payload);
   return { id: created.id, action: "created" };
@@ -81,7 +89,7 @@ async function upsertTemplate(def: { name: string; subject: string; file: string
 
 async function main() {
   if (!apiKey) throw new Error("BREVO_API_KEY is not set. Run: BREVO_API_KEY=xkeysib-... pnpm brevo:setup -- --sender you@example.com");
-  if (!senderEmail) throw new Error('Pass the verified sender email: pnpm brevo:setup -- --sender you@example.com [--name "Сара"]');
+  if (!senderEmail) throw new Error('Pass the verified sender email: pnpm brevo:setup -- --sender you@example.com [--name "Yuki"]');
 
   // 1. Sender must exist & be verified, otherwise Brevo won't send.
   const { senders = [] } = await brevo<{ senders?: Sender[] }>("GET", "/senders");
@@ -97,11 +105,22 @@ async function main() {
   // 2. Templates.
   const existing = await allTemplates();
   const doi = await upsertTemplate(
-    { name: "Подтверждение подписки — Блог Сары", subject: "Подтвердите подписку на Блог Сары", file: "double-opt-in.html", tag: "optin" },
+    {
+      name: "Подтверждение подписки — Yuki Diaries",
+      legacyNames: ["Подтверждение подписки — Блог Сары"],
+      subject: "Подтвердите подписку на Yuki Diaries",
+      file: "double-opt-in.html",
+      tag: "optin",
+    },
     existing,
   );
   const post = await upsertTemplate(
-    { name: "Новая запись — Блог Сары", subject: "Новая запись в Блоге Сары", file: "new-post.html" },
+    {
+      name: "Новая запись — Yuki Diaries",
+      legacyNames: ["Новая запись — Блог Сары"],
+      subject: "Новая запись в Yuki Diaries",
+      file: "new-post.html",
+    },
     existing,
   );
   console.log(`✔ Double opt-in template ${doi.action}: #${doi.id}`);
@@ -109,7 +128,10 @@ async function main() {
 
   // 3. Newsletter list id.
   const { lists = [] } = await brevo<{ lists?: List[] }>("GET", "/contacts/lists?limit=50&offset=0");
-  const list = lists.find((l) => l.name === listName) ?? lists.find((l) => l.name.toLowerCase().includes("sara"));
+  const list =
+    lists.find((l) => l.name === listName) ??
+    lists.find((l) => LEGACY_LIST_NAMES.includes(l.name)) ??
+    lists.find((l) => /yuki|sara/i.test(l.name));
 
   const old = existing.find((t) => /TEMPORARY_DOUBLE_OPT-IN/i.test(t.name));
 

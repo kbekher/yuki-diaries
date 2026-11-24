@@ -5,7 +5,7 @@ A calm, dark personal blog — thoughts on life and a very uncommon life experie
 **Russian-only site; readers use browser translation.** Sara writes in Russian and the whole site (posts and UI) is
 Russian, served with `<html lang="ru">`. Readers who want Ukrainian, English or anything else use their browser's
 built-in page translation (Chrome/Edge/Safari *Translate this page*) — see [Browser translation](#browser-translation).
-The blog name («Блог Сары»), author («Сара») and description live in `src/lib/site.ts`.
+The blog name ("Yuki Diaries"), author ("Yuki") and description live in `src/lib/site.ts`.
 
 **Stack:** Next.js 16 (App Router, Cache Components) · React 19 · TypeScript · Tailwind CSS v4 · Drizzle ORM + Neon Postgres · Vercel Blob · Tiptap v3 · Unsplash · LanguageTool · Brevo. Hosted on Vercel.
 

@@ -57,6 +57,8 @@
   --pill: var(--cta);
   --pill-fg: var(--cta-fg);
   --pill-hover: var(--cta-hover);
+  /* Duotone photo tint (the theme accent; NOT remapped inside the band) */
+  --duo: #4fd1c5;
 
   /* Editor text-color palette (theme-aware; referenced via data-color="name") */
   --tc-gray: #a3a09b;
@@ -117,6 +119,7 @@
   --pill: var(--cta);
   --pill-fg: var(--cta-fg);
   --pill-hover: var(--cta-hover);
+  --duo: #0e6a63;
 
   --tc-gray: #6b6660;
   --tc-red: #c0392b;
@@ -213,12 +216,12 @@ body {
   background: var(--selection);
 }
 
-/* Focus ring follows each element's own border-radius (never override it here — that made rounded
-   inputs/pills change shape on focus). Plain inline links get a small radius via :where (zero specificity). */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+/* The focus ring follows each element's own border-radius (overriding it made rounded inputs change shape
+   on focus); only plain inline links get a small radius, via :where (zero specificity). */
 :where(a:not([class])):focus-visible {
   border-radius: 4px;
 }
@@ -374,6 +377,19 @@ html:has([data-hero-band]) .site-header:not([data-over-band="false"]) {
   transform: translateX(2px);
 }
 
+/*
+ * Duotone photo: the greyscale photo multiplied onto the theme accent (--duo, which is not remapped on the band).
+ * Usage: <div class="duotone relative overflow-hidden"><img …></div> (works with next/image `fill`).
+ */
+.duotone {
+  isolation: isolate;
+  background-color: var(--duo) !important;
+}
+.duotone img {
+  filter: grayscale(1) contrast(1.15) brightness(1.02);
+  mix-blend-mode: multiply;
+}
+
 /* Black & white photo that regains its colour on hover (desktop pointers only). */
 .bw img {
   filter: grayscale(1) contrast(1.1);
@@ -387,7 +403,3 @@ html:has([data-hero-band]) .site-header:not([data-over-band="false"]) {
   }
 }
 
-/* The home page renders its own newsletter strip; the footer copy is for every other page. */
-html:has([data-home-newsletter]) .footer-newsletter {
-  display: none;
-}

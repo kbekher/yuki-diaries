@@ -18,7 +18,7 @@ async function CopyrightYear() {
 
 /**
  * Minimal footer: brand, small links, copyright, one hairline. The newsletter strip sits above it on every page
- * except the home page, which shows its own strip (marked [data-home-newsletter]; hidden here via CSS :has()).
+ * (including home — it is the only newsletter box on the site).
  */
 export function SiteFooter({ lang, dict }: { lang: UiLang; dict: Dictionary }) {
   return (

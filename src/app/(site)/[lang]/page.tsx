@@ -13,7 +13,6 @@ import { PostGrid } from "@/components/site/post-card";
 import { SeriesRow } from "@/components/site/series-row";
 import { Pagination } from "@/components/site/pagination";
 import { EmptyState } from "@/components/site/empty-state";
-import { NewsletterForm } from "@/components/site/newsletter-form";
 import { PhotoCredit } from "@/components/site/photo-credit";
 import { PostGridSkeleton } from "@/components/site/skeletons";
 import { pageAlternates } from "./_lib/seo";
@@ -65,19 +64,10 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[la
               title={dict.home.emptyTitle}
               text={dict.home.emptyText}
               icon={<Feather aria-hidden className="size-5" strokeWidth={1.75} />}
-            >
-              <div data-home-newsletter>
-                <NewsletterForm labels={dict.newsletter} variant="inline" className="text-left" />
-              </div>
-            </EmptyState>
+            />
           </div>
         )}
 
-        {latest.length > 0 && (
-          <div data-home-newsletter className="mt-24 sm:mt-28">
-            <NewsletterForm labels={dict.newsletter} variant="strip" />
-          </div>
-        )}
       </div>
     </>
   );
@@ -86,7 +76,7 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[la
 /**
  * Two-tone hero: the band is the page's inverse surface (`.on-band` remaps the tokens; `data-hero-band` also
  * tints the sticky header while the band is under it). Brand block (label, wordmark, CTA) next to a wider
- * natural-colour portrait; without a portrait the brand block spans the full width.
+ * duotone portrait; without a portrait the brand block spans the full width.
  */
 function HeroBand({ dict, portrait, hasPosts }: { dict: Dictionary; portrait: Cover | null; hasPosts: boolean }) {
   const [first, ...rest] = site.name.split(" ");
@@ -118,7 +108,7 @@ function HeroBand({ dict, portrait, hasPosts }: { dict: Dictionary; portrait: Co
 
         {portrait && (
           <figure className="motion-safe:animate-[fade-in_1000ms_var(--ease-apple)_150ms_both]">
-            <div className="relative h-[380px] overflow-hidden rounded-[1.125rem] sm:h-[460px] lg:h-[520px]">
+            <div className="duotone relative h-[380px] overflow-hidden rounded-[1.125rem] sm:h-[460px] lg:h-[520px]">
               <CoverImage
                 cover={{ ...portrait, alt: portrait.alt || dict.home.heroPortraitAlt }}
                 priority

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { fmt, formatMonthYear, type Dictionary } from "@/lib/i18n/get-dictionary";
+import { fmt, formatDate, formatMonthYear, type Dictionary } from "@/lib/i18n/get-dictionary";
 import type { UiLang } from "@/lib/i18n/ui";
 
 /**
@@ -13,6 +13,7 @@ export function PostLabel({
   location,
   readingMinutes,
   dict,
+  fullDate = false,
   className,
 }: {
   /** UI language (month names, "min"). */
@@ -21,12 +22,14 @@ export function PostLabel({
   location?: string | null;
   readingMinutes?: number;
   dict?: Dictionary;
+  /** Show day, month and year (post page) instead of month + year (lists). */
+  fullDate?: boolean;
   className?: string;
 }) {
   return (
     <p lang={lang} className={clsx("site-label flex flex-wrap items-center gap-x-2.5 gap-y-1", className)}>
       <time dateTime={publishedAt.toISOString()} className="site-label-accent">
-        {formatMonthYear(publishedAt, lang)}
+        {fullDate ? formatDate(publishedAt, lang) : formatMonthYear(publishedAt, lang)}
       </time>
       {location && (
         <>

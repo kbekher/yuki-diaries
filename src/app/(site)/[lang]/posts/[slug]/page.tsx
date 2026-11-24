@@ -99,6 +99,7 @@ async function PostContent({ params }: { params: PageProps<"/[lang]/posts/[slug]
             <span>{dict.post.back}</span>
           </Link>
           <PostLabel
+            fullDate
             className="justify-center"
             publishedAt={post.publishedAt}
             location={post.location}

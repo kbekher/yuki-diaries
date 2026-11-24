@@ -62,7 +62,13 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/:lang(ru|uk)", destination: "/", permanent: true },
-      { source: "/:lang(ru|uk)/:path*", destination: "/:path*", permanent: true },
+      // Old /ru/… and /uk/… links → unprefixed Russian URLs. Generated share images (opengraph/twitter) are
+      // emitted by Next under /ru/… for the Russian UI, so they must NOT be redirected.
+      {
+        source: "/:lang(ru|uk)/:path((?!(?:.*/)?(?:opengraph|twitter)-image).*)",
+        destination: "/:path",
+        permanent: true,
+      },
     ];
   },
   async headers() {

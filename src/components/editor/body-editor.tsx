@@ -153,16 +153,18 @@ export default function BodyEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     editorProps: {
-      attributes: {
+      // A function, so ProseMirror re-reads the current post language on every update (a static object
+      // would put the initial `lang` back after a live language change).
+      attributes: () => ({
         class: "prose-sara editor-body",
-        lang: TEXT_LANGUAGE_HTML[language],
+        lang: TEXT_LANGUAGE_HTML[languageRef.current],
         spellcheck: "true",
         autocapitalize: "sentences",
         autocorrect: "on",
         role: "textbox",
         "aria-multiline": "true",
         "aria-label": "Текст записи",
-      },
+      }),
     },
     onCreate: ({ editor: e }) => {
       setStats(computeStats(e));
@@ -174,12 +176,17 @@ export default function BodyEditor({
   });
 
   // «Язык текста» changed: native spellcheck, then LanguageTool (typography rules read the ref on each keystroke).
+  // Runs only on a real change — the initial language is already applied when the editor is created.
+  // The LanguageTool controller is called directly, NOT through `editor.commands`: a command's transaction is
+  // dispatched after the command returns, so a controller that dispatches its own transaction inside a command
+  // makes the command's (now stale) transaction fail with "Applying a mismatched transaction" (editor crash).
+  const appliedLanguage = useRef(language);
   useEffect(() => {
     languageRef.current = language;
-    if (!editor || editor.isDestroyed) return;
-    const attributes = { ...editor.options.editorProps?.attributes, lang: TEXT_LANGUAGE_HTML[language] };
-    editor.setOptions({ editorProps: { ...editor.options.editorProps, attributes } });
-    editor.commands.languageToolLanguageChanged();
+    if (!editor || editor.isDestroyed || appliedLanguage.current === language) return;
+    appliedLanguage.current = language;
+    editor.view.dom.setAttribute("lang", TEXT_LANGUAGE_HTML[language]);
+    editor.storage.languageTool?.controller?.languageChanged();
   }, [editor, language]);
 
   useEffect(() => {

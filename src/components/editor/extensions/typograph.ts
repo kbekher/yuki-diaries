@@ -9,7 +9,7 @@
 import { Extension } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
-import type { Locale } from "@/lib/i18n/config";
+import type { TextLanguage } from "@/lib/i18n/config";
 import { OBJECT_CHAR, diffChars, typographText } from "@/lib/content/typography";
 
 declare module "@tiptap/core" {
@@ -39,7 +39,7 @@ function blockText(node: PMNode): string {
 }
 
 /** Apply typography to `tr` (built on `doc`); returns the number of fixes. */
-export function applyTypograph(tr: Transaction, locale: Locale): number {
+export function applyTypograph(tr: Transaction, locale: TextLanguage): number {
   const doc = tr.doc;
   const edits: { from: number; to: number; insert: string }[] = [];
 
@@ -97,11 +97,11 @@ export function applyTypograph(tr: Transaction, locale: Locale): number {
   return edits.length + removedParagraphs;
 }
 
-export const Typograph = Extension.create<{ locale: Locale }>({
+export const Typograph = Extension.create<{ getLanguage: () => TextLanguage }>({
   name: "typograph",
 
   addOptions() {
-    return { locale: "ru" };
+    return { getLanguage: () => "ru" };
   },
 
   addStorage() {
@@ -114,7 +114,7 @@ export const Typograph = Extension.create<{ locale: Locale }>({
         () =>
         ({ tr, dispatch }) => {
           if (!dispatch) return true;
-          const fixes = applyTypograph(tr, this.options.locale);
+          const fixes = applyTypograph(tr, this.options.getLanguage());
           this.storage.lastFixes = fixes;
           return true;
         },

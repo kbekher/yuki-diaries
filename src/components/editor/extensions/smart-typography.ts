@@ -11,9 +11,10 @@
  */
 import { Extension, InputRule, type ExtendedRegExpMatchArray } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
-import type { Locale } from "@/lib/i18n/config";
+import type { TextLanguage } from "@/lib/i18n/config";
 import {
   NBSP,
+  NNBSP,
   isSentenceStart,
   smartDoubleQuote,
   smartSingleQuote,
@@ -53,30 +54,37 @@ function inLink(state: EditorState, pos: number): boolean {
     .some((m) => m.type.name === "link");
 }
 
-export type SmartTypographyOptions = { locale: Locale };
+export type SmartTypographyOptions = {
+  /** The post language, read at keystroke time so changing «Язык текста» takes effect without a reload. */
+  getLanguage: () => TextLanguage;
+};
 
 export const SmartTypography = Extension.create<SmartTypographyOptions>({
   name: "smartTypography",
 
   addOptions() {
-    return { locale: "ru" };
+    return { getLanguage: () => "ru" };
   },
 
   addInputRules() {
-    const locale = this.options.locale;
-    const cyr = locale !== "en";
-    const dashSpace = cyr ? NBSP : " ";
+    const { getLanguage } = this.options;
+    /** Run `compute` only for the given languages (the rule list is built once; the language can change). */
+    const only =
+      (langs: TextLanguage[], compute: Compute): Compute =>
+      (m, ctx) =>
+        langs.includes(getLanguage()) ? compute(m, ctx) : null;
+    const dashSpace = () => (getLanguage() === "ru" ? NBSP : " ");
 
     return [
       // ── Quotes & apostrophes ──
-      rule(/"$/, (_m, { before, state, range }) => (inLink(state, range.from) ? null : smartDoubleQuote(before, locale))),
-      rule(/'$/, (_m, { before, state, range }) => (inLink(state, range.from) ? null : smartSingleQuote(before, locale))),
+      rule(/"$/, (_m, { before, state, range }) => (inLink(state, range.from) ? null : smartDoubleQuote(before, getLanguage()))),
+      rule(/'$/, (_m, { before, state, range }) => (inLink(state, range.from) ? null : smartSingleQuote(before, getLanguage()))),
 
       // ── Dashes ──
       // "--" → "—" (with a no-break space before it in ru/uk when preceded by a space).
-      rule(/( ?)--$/, (m) => (m[1] ? `${dashSpace}—` : "—")),
+      rule(/( ?)--$/, (m) => (m[1] ? `${dashSpace()}—` : "—")),
       // "word - " → "word — " (ru/uk: no-break space before the dash).
-      rule(/(\S) - $/, (m) => `${m[1]}${dashSpace}— `),
+      rule(/(\S) - $/, (m) => `${m[1]}${dashSpace()}— `),
 
       // ── Symbols ──
       rule(/\.\.\.$/, () => "…"),
@@ -86,18 +94,32 @@ export const SmartTypography = Extension.create<SmartTypographyOptions>({
       rule(/->$/, () => "→"),
       rule(/<-$/, () => "←"),
       rule(/\+-$/, () => "±"),
-      rule(/<<$/, () => "«"),
-      rule(/>>$/, () => "»"),
+      rule(/<<$/, () => (getLanguage() === "fr" ? `«${NNBSP}` : "«")),
+      rule(/>>$/, () => (getLanguage() === "fr" ? `${NNBSP}»` : "»")),
 
       // ── Spacing ──
       // No space before , . ! ? (":" and ";" are left alone live because of smileys like " :)").
+      // (French keeps — and normalizes — the space before ! ? ; : see below.)
       rule(/(\S)[ \u00A0]([,.!?])$/, (m) => {
+        if (getLanguage() === "fr" && (m[2] === "!" || m[2] === "?")) return null;
         // After other punctuation (": .", "— .") the space is intentional (e.g. an ellipsis is coming).
         if (/[\p{P}\p{S}]/u.test(m[1])) return null;
         return `${m[1]}${m[2]}`;
       }),
+      // French: narrow no-break space before ; : ! ? — typed with a space ("Oui !") or, for ! and ?, without one.
+      // (":" and ";" typed right after a word stay as they are: URLs, times, smileys.)
+      rule(
+        /(\S)([ \u00A0\u202F]?)([!?;:])$/u,
+        only(["fr"], (m) => {
+          const [, prev, space, mark] = m;
+          if (/[\s!?;:…]/u.test(prev)) return null;
+          if (!space && (mark === ":" || mark === ";")) return null;
+          if (/[\p{P}\p{S}]/u.test(prev) && !/[)»”]/.test(prev)) return null;
+          return `${prev}${NNBSP}${mark}`;
+        }),
+      ),
       // Collapse a second consecutive space.
-      rule(/([ \u00A0]) $/, (m) => m[1]),
+      rule(/([ \u00A0\u202F]) $/, (m) => m[1]),
       // Missing space after a comma before a letter: "раз,два" → "раз, два" (not in URLs/numbers).
       rule(/(\S*),(\p{L})$/u, (m) => (/[/@.:=&?#]/.test(m[1]) || m[1] === "" ? null : `${m[1]}, ${m[2]}`)),
 
@@ -108,13 +130,13 @@ export const SmartTypography = Extension.create<SmartTypographyOptions>({
         const after = textAfter(state, range.to);
         if (/^[\p{L}\p{N}]/u.test(after)) return null; // editing inside an existing word
         if (/[\p{L}\p{N}]$/u.test(before)) return null; // not a word start
-        const core = before.replace(/[«„“"‘(]+$/u, "");
+        const core = before.replace(/[«„“"‘(]+[\u202F\u00A0]?$/u, "");
         const blockStart = core.replace(/[\s\u00A0—–-]/g, "") === "";
         if (!blockStart && !(/[\s\u00A0]$/.test(core) && isSentenceStart(core))) return null;
         return m[1].toUpperCase();
       }),
       // English pronoun "i" → "I".
-      ...(locale === "en" ? [rule(/(^|\s)i([\s,.!?’'])$/, (m) => `${m[1]}I${m[2]}`)] : []),
+      rule(/(^|\s)i([\s,.!?’'])$/, only(["en"], (m) => `${m[1]}I${m[2]}`)),
     ];
   },
 });

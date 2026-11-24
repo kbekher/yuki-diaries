@@ -58,6 +58,8 @@ export const posts = pgTable(
     newsletterSentAt: timestamp("newsletter_sent_at", { withTimezone: true }),
     /** Optional place shown in labels, e.g. "Альпы, Швейцария". */
     location: text("location"),
+    /** Language the post is written in ("ru" | "en" | "fr"): drives spellcheck, typography rules, LanguageTool and <article lang>. */
+    language: text("language").notNull().default("ru"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

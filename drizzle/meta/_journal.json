@@ -22,6 +22,13 @@
       "when": 1793804382376,
       "tag": "0002_lyrical_bucky",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795527984134,
+      "tag": "0003_mighty_gertrude_yorkes",
+      "breakpoints": true
     }
   ]
 }

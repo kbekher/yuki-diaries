@@ -1,0 +1,1 @@
+ALTER TABLE "posts" ADD COLUMN "language" text DEFAULT 'ru' NOT NULL;

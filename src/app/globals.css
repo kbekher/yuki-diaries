@@ -216,9 +216,13 @@ body {
   background: var(--selection);
 }
 
+/* Focus ring follows each element's own border-radius (never override it here — that made rounded
+   inputs/pills change shape on focus). Plain inline links get a small radius via :where (zero specificity). */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+:where(a:not([class])):focus-visible {
   border-radius: 4px;
 }
 

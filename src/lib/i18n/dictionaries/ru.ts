@@ -1,5 +1,5 @@
 /**
- * Russian UI strings — the site's only dictionary (readers use their browser's page translation for other languages).
+ * Russian UI strings (the default UI language; English lives in ./en.ts and must keep the same shape).
  * Every string here is rendered as real DOM text, so browser translators can pick it up.
  *
  * Conventions:
@@ -13,6 +13,7 @@ export type PluralForms = { one: string; few?: string; many?: string; other: str
 
 const ru = {
   meta: {
+    siteDescription: "Yuki Diaries — личный блог.",
     tagsTitle: "Темы",
     tagsDescription: "Все темы, о которых я пишу.",
     tagTitle: "Тема «{tag}»",
@@ -43,6 +44,11 @@ const ru = {
     light: "Светлая",
     system: "Как в системе",
     current: "Тема: {theme}. Нажмите, чтобы переключить",
+  },
+  language: {
+    label: "Язык интерфейса",
+    /** "Switch to {language}" for each option, read by screen readers. */
+    switchTo: "Переключить на {language}",
   },
   home: {
     eyebrow: "Личный блог",

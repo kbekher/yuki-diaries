@@ -20,7 +20,7 @@ import {
   type Tag,
 } from "@/db/schema";
 import type { PostEditorData, PostListItem, TagItem } from "@/lib/admin/types";
-import { siteLocale } from "@/lib/i18n/config";
+import { DEFAULT_TEXT_LANGUAGE, isTextLanguage, siteLocale } from "@/lib/i18n/config";
 import { isCampaignConfigured } from "@/lib/services/newsletter-campaign";
 import { nextFreeSlug, slugify } from "@/lib/services/slug";
 
@@ -69,6 +69,7 @@ export function toEditorData(bundle: PostBundle): PostEditorData {
     cover: post.cover ?? null,
     featured: post.featured,
     location: post.location ?? null,
+    language: isTextLanguage(post.language) ? post.language : DEFAULT_TEXT_LANGUAGE,
     publishedAt: post.publishedAt?.toISOString() ?? null,
     updatedAt: post.updatedAt.toISOString(),
     tags: bundle.tags.map(toTagItem),

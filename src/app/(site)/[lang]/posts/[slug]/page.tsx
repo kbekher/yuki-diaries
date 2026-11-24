@@ -3,8 +3,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { siteLocaleTag } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/get-dictionary";
+import { isUiLang, localePath, type UiLang } from "@/lib/i18n/ui";
+import { TEXT_LANGUAGE_HTML } from "@/lib/i18n/config";
 import {
   getAdjacentPosts,
   getPostBySlug,
@@ -22,8 +23,9 @@ import { ArticleSkeleton } from "@/components/site/skeletons";
 import { ScrollToTop } from "@/components/site/scroll-to-top";
 import { absoluteUrl, jsonLd, pageAlternates } from "../../_lib/seo";
 
-export async function generateMetadata({ params }: PageProps<"/posts/[slug]">): Promise<Metadata> {
-  const { slug } = await params;
+export async function generateMetadata({ params }: PageProps<"/[lang]/posts/[slug]">): Promise<Metadata> {
+  const { lang, slug } = await params;
+  if (!isUiLang(lang)) return {};
   const post = await getPostBySlug(slug);
   if (!post) return { robots: { index: false } };
 
@@ -31,13 +33,14 @@ export async function generateMetadata({ params }: PageProps<"/posts/[slug]">): 
   return {
     title: post.title,
     description: post.excerpt || undefined,
-    alternates: pageAlternates(path),
+    alternates: pageAlternates(lang, path),
     authors: [{ name: site.author }],
     openGraph: {
       type: "article",
       title: post.title,
       description: post.excerpt || undefined,
-      url: path,
+      url: localePath(lang, path),
+      locale: TEXT_LANGUAGE_HTML[post.language].replace("-", "_"),
       publishedTime: post.publishedAt.toISOString(),
       modifiedTime: post.updatedAt.toISOString(),
       authors: [site.author],
@@ -51,7 +54,7 @@ export async function generateMetadata({ params }: PageProps<"/posts/[slug]">): 
  * The slug is not known at build time, so params are read inside Suspense: the App Shell (header, footer,
  * skeleton) is served instantly and the article streams in, then gets cached for the next visitor.
  */
-export default function PostPage({ params }: PageProps<"/posts/[slug]">) {
+export default function PostPage({ params }: PageProps<"/[lang]/posts/[slug]">) {
   return (
     <Suspense fallback={<ArticleSkeleton />}>
       <PostContent params={params} />
@@ -59,20 +62,21 @@ export default function PostPage({ params }: PageProps<"/posts/[slug]">) {
   );
 }
 
-async function PostContent({ params }: { params: PageProps<"/posts/[slug]">["params"] }) {
-  const { slug } = await params;
+async function PostContent({ params }: { params: PageProps<"/[lang]/posts/[slug]">["params"] }) {
+  const { lang, slug } = await params;
+  if (!isUiLang(lang)) notFound();
   const [post, adjacent] = await Promise.all([getPostBySlug(slug), getAdjacentPosts(slug)]);
   if (!post) notFound();
 
-  const dict = getDictionary();
-  const url = absoluteUrl(`/posts/${post.slug}`);
+  const dict = getDictionary(lang);
+  const url = absoluteUrl(localePath(lang, `/posts/${post.slug}`));
 
   return (
     <>
       <ReadingProgress />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(blogPostingLd(post, url)) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(blogPostingLd(post, url, lang)) }} />
 
-      <article className="relative pt-8 sm:pt-12">
+      <article lang={post.language} className="relative pt-8 sm:pt-12">
         <ScrollToTop />
         {/* Clip the overflowing glyph here so `overflow-x` on the article cannot create a
             scroll container (that left the page a few dozen pixels down on open). */}
@@ -84,7 +88,8 @@ async function PostContent({ params }: { params: PageProps<"/posts/[slug]">["par
 
         <header className="relative mx-auto max-w-[52rem] px-5 text-center sm:px-8 motion-safe:animate-[fade-up_800ms_var(--ease-out-expo)_both]">
           <Link
-            href="/"
+            href={localePath(lang, "/")}
+            lang={lang}
             className="group mb-8 inline-flex min-h-11 items-center gap-1.5 text-[0.8125rem] text-fg-muted transition-colors duration-300 hover:text-fg-strong sm:mb-10"
           >
             <ArrowLeft
@@ -98,6 +103,7 @@ async function PostContent({ params }: { params: PageProps<"/posts/[slug]">["par
             publishedAt={post.publishedAt}
             location={post.location}
             readingMinutes={post.readingMinutes}
+            lang={lang}
             dict={dict}
           />
           <h1 className="mt-5 font-serif text-[2.375rem] leading-[1.08] font-semibold tracking-[-0.02em] text-fg-strong text-balance sm:text-[3.25rem] lg:text-[3.875rem] lg:leading-[1.05]">
@@ -116,7 +122,7 @@ async function PostContent({ params }: { params: PageProps<"/posts/[slug]">["par
             <div className="relative aspect-[3/2] overflow-hidden rounded-[1.125rem] sm:aspect-[25/13]">
               <CoverImage cover={post.cover} priority sizes="(min-width: 1064px) 1000px, 100vw" />
             </div>
-            <PhotoCredit cover={post.cover} dict={dict} className="mt-3 text-center" />
+            <PhotoCredit cover={post.cover} dict={dict} lang={lang} className="mt-3 text-center" />
           </figure>
         )}
 
@@ -127,12 +133,12 @@ async function PostContent({ params }: { params: PageProps<"/posts/[slug]">["par
 
         <span aria-hidden className="mx-auto mt-14 block h-0.5 w-11 bg-accent" />
 
-        <footer className="mt-14 space-y-14 px-5 sm:px-8">
+        <footer lang={lang} className="mt-14 space-y-14 px-5 sm:px-8">
           <div className="article-measure flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
             {post.tags.length > 0 ? (
               <div>
                 <h2 className="site-label mb-3">{dict.post.tags}</h2>
-                <TagList tags={post.tags} />
+                <TagList lang={lang} tags={post.tags} />
               </div>
             ) : (
               <span />
@@ -153,7 +159,7 @@ async function PostContent({ params }: { params: PageProps<"/posts/[slug]">["par
             </div>
           </div>
 
-          <AdjacentPosts dict={dict} newer={adjacent.newer} older={adjacent.older} />
+          <AdjacentPosts lang={lang} dict={dict} newer={adjacent.newer} older={adjacent.older} />
         </footer>
       </article>
     </>
@@ -161,10 +167,12 @@ async function PostContent({ params }: { params: PageProps<"/posts/[slug]">["par
 }
 
 function AdjacentPosts({
+  lang,
   dict,
   newer,
   older,
 }: {
+  lang: UiLang;
   dict: Dictionary;
   newer: PostSummary | null;
   older: PostSummary | null;
@@ -172,7 +180,7 @@ function AdjacentPosts({
   if (!newer && !older) return null;
   const item = (post: PostSummary, label: string, direction: "prev" | "next") => (
     <Link
-      href={`/posts/${post.slug}`}
+      href={localePath(lang, `/posts/${post.slug}`)}
       rel={direction}
       className={`group flex flex-col gap-2 rounded-lg py-1 ${direction === "next" ? "sm:items-end sm:text-right" : ""}`}
     >
@@ -185,14 +193,14 @@ function AdjacentPosts({
           <ArrowRight aria-hidden className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
         )}
       </span>
-      <span className="max-w-[22rem] font-serif text-[1.25rem] leading-snug text-fg-strong text-balance transition-colors duration-300 group-hover:text-accent">
+      <span lang={post.language} className="max-w-[22rem] font-serif text-[1.25rem] leading-snug text-fg-strong text-balance transition-colors duration-300 group-hover:text-accent">
         {post.title}
       </span>
     </Link>
   );
 
   return (
-    <nav aria-label={dict.post.moreReading} className="mx-auto max-w-[1000px] border-t border-border pt-8">
+    <nav lang={lang} aria-label={dict.post.moreReading} className="mx-auto max-w-[1000px] border-t border-border pt-8">
       <ul className="grid gap-8 sm:grid-cols-2">
         <li>{older && item(older, dict.post.previous, "prev")}</li>
         <li className="sm:flex sm:justify-end">{newer && item(newer, dict.post.next, "next")}</li>
@@ -201,21 +209,21 @@ function AdjacentPosts({
   );
 }
 
-function blogPostingLd(post: PostDetail, url: string) {
+function blogPostingLd(post: PostDetail, url: string, lang: UiLang) {
   return {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: post.title,
     description: post.excerpt || undefined,
-    inLanguage: siteLocaleTag,
+    inLanguage: TEXT_LANGUAGE_HTML[post.language],
     url,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     datePublished: post.publishedAt.toISOString(),
     dateModified: post.updatedAt.toISOString(),
-    author: { "@type": "Person", name: site.author, url: absoluteUrl("/") },
+    author: { "@type": "Person", name: site.author, url: absoluteUrl(localePath(lang, "/")) },
     publisher: { "@type": "Person", name: site.author },
     image: post.cover ? [post.cover.url] : undefined,
     keywords: post.tags.map((t) => t.name).join(", ") || undefined,
-    isPartOf: { "@type": "Blog", name: site.name, url: absoluteUrl("/") },
+    isPartOf: { "@type": "Blog", name: site.name, url: absoluteUrl(localePath(lang, "/")) },
   };
 }

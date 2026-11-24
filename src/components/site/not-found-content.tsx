@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { localePath, type UiLang } from "@/lib/i18n/ui";
 
 /** The 404 message, shared by the site's not-found page and the app-wide global-not-found page. */
-export function NotFoundContent() {
-  const dict = getDictionary();
+export function NotFoundContent({ lang = "ru" }: { lang?: UiLang }) {
+  const dict = getDictionary(lang);
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-5 pt-24 pb-8 text-center sm:pt-32 motion-safe:animate-[fade-up_800ms_var(--ease-out-expo)_both]">
       <p className="site-label site-label-accent">{dict.notFound.eyebrow}</p>
@@ -13,13 +14,13 @@ export function NotFoundContent() {
       <p className="mt-5 max-w-[46ch] font-serif text-xl text-fg-muted italic text-pretty">{dict.notFound.text}</p>
       <div className="mt-10 flex flex-wrap justify-center gap-3">
         <Link
-          href="/"
+          href={localePath(lang, "/")}
           className="pill"
         >
           {dict.notFound.home}
         </Link>
         <Link
-          href="/search"
+          href={localePath(lang, "/search")}
           className="pill pill-ghost"
         >
           {dict.notFound.search}

@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { and, asc, count, desc, eq, gt, ilike, inArray, lt, lte, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db, hasDatabase } from "@/db";
 import { posts, postTags, postTranslations, tags, type CoverImage } from "@/db/schema";
-import { siteLocale } from "@/lib/i18n/config";
+import { DEFAULT_TEXT_LANGUAGE, isTextLanguage, siteLocale, type TextLanguage } from "@/lib/i18n/config";
 
 /**
  * Cached, read-only queries for the public site.
@@ -44,6 +44,8 @@ export type PostSummary = {
   excerpt: string;
   cover: CoverImage | null;
   featured: boolean;
+  /** Language the post is WRITTEN in (`posts.language`); independent of the UI language. */
+  language: TextLanguage;
   publishedAt: Date;
   readingMinutes: number;
   tags: TagRef[];
@@ -86,6 +88,7 @@ const postColumns = {
   slug: posts.slug,
   cover: posts.cover,
   featured: posts.featured,
+  language: posts.language,
   location: posts.location,
   publishedAt: posts.publishedAt,
   createdAt: posts.createdAt,
@@ -96,6 +99,7 @@ type PostRow = {
   slug: string;
   cover: CoverImage | null;
   featured: boolean;
+  language: string;
   location: string | null;
   publishedAt: Date | null;
   createdAt: Date;
@@ -157,6 +161,10 @@ async function loadTags(postIds: string[]): Promise<Map<string, TagRef[]>> {
 }
 
 /** The tag's Russian display name (older rows may also carry uk/en names, which are ignored). */
+function toTextLanguage(value: string): TextLanguage {
+  return isTextLanguage(value) ? value : DEFAULT_TEXT_LANGUAGE;
+}
+
 function tagName(names: { ru: string } | null, slug: string): string {
   return names?.ru?.trim() || slug;
 }
@@ -209,6 +217,7 @@ async function hydrate(rows: PostRow[], withContent = false): Promise<PostSummar
       excerpt: row.excerpt,
       cover: p.cover ?? null,
       featured: p.featured,
+      language: toTextLanguage(p.language),
       publishedAt: p.publishedAt ?? p.createdAt,
       readingMinutes: Math.max(1, row.readingMinutes),
       tags: tagMap.get(p.id) ?? [],
@@ -490,6 +499,7 @@ export async function searchPosts(rawQuery: string): Promise<SearchResult[]> {
     excerpt: r.excerpt,
     cover: r.cover ?? null,
     featured: r.featured,
+    language: toTextLanguage(r.language),
     publishedAt: r.publishedAt ?? r.createdAt,
     readingMinutes: Math.max(1, r.readingMinutes),
     tags: tagMap.get(r.id) ?? [],

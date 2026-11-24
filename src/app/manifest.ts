@@ -1,5 +1,4 @@
 import type { MetadataRoute } from "next";
-import { siteLocale } from "@/lib/i18n/config";
 import { site } from "@/lib/site";
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -7,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: site.name,
     short_name: site.name,
     description: site.description,
-    lang: siteLocale,
+    lang: "ru",
     start_url: "/",
     scope: "/",
     display: "standalone",

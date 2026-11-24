@@ -10,7 +10,7 @@ import { Placeholder } from "@tiptap/extensions";
 import type { CoverImage } from "@/db/schema";
 import { getExtensions } from "@/lib/content/extensions";
 import { countWords, readingMinutesFor } from "@/lib/content/stats";
-import { siteLocale } from "@/lib/i18n/config";
+import { TEXT_LANGUAGE_HTML, siteLocale, type TextLanguage } from "@/lib/i18n/config";
 import { useToast } from "@/components/admin/toast";
 import { SmartTypography } from "./extensions/smart-typography";
 import { Typograph } from "./extensions/typograph";
@@ -49,6 +49,8 @@ export type BodyEditorProps = {
   title: string;
   /** Save status element shown in the status bar. */
   saveStatus: ReactNode;
+  /** The language the post is written in: spellcheck `lang`, typography rules and LanguageTool follow it live. */
+  language: TextLanguage;
 };
 
 type Stats = { words: number; chars: number; minutes: number };
@@ -70,7 +72,7 @@ function plural(n: number, one: string, few: string, many: string) {
   return many;
 }
 
-/** The post body. Always Russian: spellcheck, typography rules and LanguageTool all use `siteLocale`. */
+/** The post body. Spellcheck, typography rules and LanguageTool follow the post language (`language`, changeable live). */
 export default function BodyEditor({
   initialContent,
   onChange,
@@ -79,6 +81,7 @@ export default function BodyEditor({
   onBlur,
   title,
   saveStatus,
+  language,
 }: BodyEditorProps) {
   const toast = useToast();
   const [ltEnabled, setLtEnabled] = useState(() => readLanguageToolEnabled());
@@ -92,6 +95,8 @@ export default function BodyEditor({
   const [stats, setStats] = useState<Stats>({ words: 0, chars: 0, minutes: 1 });
   const fileInput = useRef<HTMLInputElement>(null);
   const editorRef = useRef<Editor | null>(null);
+  // Extensions are created once, so they read the current post language through this ref.
+  const languageRef = useRef<TextLanguage>(language);
 
   // Latest callbacks for extension options (extensions are created once).
   const cb = useRef({ onChange, onSaveShortcut, onBlur, toast });
@@ -114,11 +119,15 @@ export default function BodyEditor({
           return editor.isEmpty ? "Расскажите свою историю… «/» — вставить фото, заголовок, цитату" : "Пишите… или нажмите «/»";
         },
       }),
-      SmartTypography.configure({ locale: siteLocale }),
-      Typograph.configure({ locale: siteLocale }),
+      // eslint-disable-next-line react-hooks/refs -- read at keystroke time, never during render
+      SmartTypography.configure({ getLanguage: () => languageRef.current }),
+      // eslint-disable-next-line react-hooks/refs -- read at keystroke time, never during render
+      Typograph.configure({ getLanguage: () => languageRef.current }),
+      // eslint-disable-next-line react-hooks/refs -- read at keystroke time, never during render
       LanguageTool.configure({
         enabled: readLanguageToolEnabled(),
         endpoint: "/api/languagetool",
+        getLanguage: () => languageRef.current,
         onStatus: (status) => setLtStatus(status),
         onOpen: (issue, rect) => setLtIssue({ issue, rect }),
       }),
@@ -146,7 +155,7 @@ export default function BodyEditor({
     editorProps: {
       attributes: {
         class: "prose-sara editor-body",
-        lang: siteLocale,
+        lang: TEXT_LANGUAGE_HTML[language],
         spellcheck: "true",
         autocapitalize: "sentences",
         autocorrect: "on",
@@ -163,6 +172,15 @@ export default function BodyEditor({
     },
     onBlur: () => cb.current.onBlur?.(),
   });
+
+  // «Язык текста» changed: native spellcheck, then LanguageTool (typography rules read the ref on each keystroke).
+  useEffect(() => {
+    languageRef.current = language;
+    if (!editor || editor.isDestroyed) return;
+    const attributes = { ...editor.options.editorProps?.attributes, lang: TEXT_LANGUAGE_HTML[language] };
+    editor.setOptions({ editorProps: { ...editor.options.editorProps, attributes } });
+    editor.commands.languageToolLanguageChanged();
+  }, [editor, language]);
 
   useEffect(() => {
     editorRef.current = editor;

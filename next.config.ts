@@ -49,18 +49,20 @@ const nextConfig: NextConfig = {
       // Long posts are saved as Tiptap JSON in one action call.
       bodySizeLimit: "4mb",
     },
-    // app/global-not-found.tsx: 404 for unmatched URLs (two root layouts — (site) and admin — and no app/layout.tsx).
+    // app/global-not-found.tsx: 404 for unmatched URLs (two root layouts — (site)/[lang] and admin — and no app/layout.tsx).
     globalNotFound: true,
   },
   /**
-   * The site used to live under /ru, /uk and /en. It is Russian-only now (readers use browser translation),
-   * so old links and search results are permanently redirected to the unprefixed URLs:
-   * /ru → /, /en/posts/x → /posts/x, /uk/rss.xml → /rss.xml, … (query strings are kept).
+   * Public URLs: Russian (default) is UNPREFIXED, English lives under /en. Internally every public page is
+   * `app/(site)/[lang]/…`; src/proxy.ts rewrites unprefixed requests to /ru/…. Redirects run BEFORE the proxy and are
+   * matched against the incoming URL only, so a visible /ru/… (old links, the legacy /uk/…) is permanently redirected
+   * to the unprefixed URL while the proxy's internal rewrite to /ru/… is never redirected. /en/… is not listed here.
+   * (Query strings are kept.)
    */
   async redirects() {
     return [
-      { source: "/:lang(ru|uk|en)", destination: "/", permanent: true },
-      { source: "/:lang(ru|uk|en)/:path*", destination: "/:path*", permanent: true },
+      { source: "/:lang(ru|uk)", destination: "/", permanent: true },
+      { source: "/:lang(ru|uk)/:path*", destination: "/:path*", permanent: true },
     ];
   },
   async headers() {

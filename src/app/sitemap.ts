@@ -1,8 +1,17 @@
 import type { MetadataRoute } from "next";
 import { getAllPublishedSlugs } from "@/lib/posts/public-queries";
-import { absoluteUrl } from "./(site)/_lib/seo";
+import { languageAlternates, localePath, UI_LANGS } from "@/lib/i18n/ui";
+import { absoluteUrl } from "./(site)/[lang]/_lib/seo";
 
-/** Every public page. The site is Russian-only (browser translation covers other languages), so no hreflang. */
+/** Absolute hreflang map for an unprefixed path. */
+function alternates(path: string) {
+  return Object.fromEntries(Object.entries(languageAlternates(path)).map(([k, v]) => [k, absoluteUrl(v)]));
+}
+
+/**
+ * Every public page in both UI languages (ru unprefixed, en under /en), each entry carrying the hreflang alternates.
+ * `/search` is noindex and left out.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await getAllPublishedSlugs();
   const latest = posts.reduce<Date | undefined>(
@@ -10,14 +19,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     undefined,
   );
 
+  const entry = (
+    path: string,
+    rest: Omit<MetadataRoute.Sitemap[number], "url" | "alternates">,
+  ): MetadataRoute.Sitemap =>
+    UI_LANGS.map((lang) => ({
+      url: absoluteUrl(localePath(lang, path)),
+      ...rest,
+      alternates: { languages: alternates(path) },
+    }));
+
   return [
-    { url: absoluteUrl("/"), lastModified: latest, changeFrequency: "daily", priority: 1 },
-    { url: absoluteUrl("/tags"), lastModified: latest, changeFrequency: "weekly", priority: 0.4 },
-    ...posts.map((p) => ({
-      url: absoluteUrl(`/posts/${p.slug}`),
-      lastModified: p.updatedAt,
-      changeFrequency: "monthly" as const,
-      priority: 0.8,
-    })),
+    ...entry("/", { lastModified: latest, changeFrequency: "daily", priority: 1 }),
+    ...entry("/tags", { lastModified: latest, changeFrequency: "weekly", priority: 0.4 }),
+    ...posts.flatMap((p) =>
+      entry(`/posts/${p.slug}`, { lastModified: p.updatedAt, changeFrequency: "monthly", priority: 0.8 }),
+    ),
   ];
 }

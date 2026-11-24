@@ -14,10 +14,12 @@ type Props = {
   placeholder: string;
   label: string;
   maxLength?: number;
+  /** HTML `lang` of the field (native spellcheck language). */
+  lang?: string;
 };
 
 export const TitleField = forwardRef<HTMLTextAreaElement, Props>(function TitleField(
-  { value, onChange, onEnter, onBlur, variant, placeholder, label, maxLength },
+  { value, onChange, onEnter, onBlur, variant, placeholder, label, maxLength, lang },
   forwarded,
 ) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -44,6 +46,7 @@ export const TitleField = forwardRef<HTMLTextAreaElement, Props>(function TitleF
       rows={1}
       value={value}
       spellCheck
+      lang={lang}
       autoCapitalize="sentences"
       maxLength={maxLength}
       placeholder={placeholder}

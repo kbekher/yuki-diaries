@@ -1,21 +1,29 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Hash } from "lucide-react";
 import { getDictionary, plural } from "@/lib/i18n/get-dictionary";
+import { isUiLang } from "@/lib/i18n/ui";
 import { getAllTags } from "@/lib/posts/public-queries";
 import { PageIntro } from "@/components/site/page-intro";
 import { TagChip } from "@/components/site/tag-chip";
 import { EmptyState } from "@/components/site/empty-state";
 import { pageAlternates } from "../_lib/seo";
 
-const dict = getDictionary();
+export async function generateMetadata({ params }: PageProps<"/[lang]/tags">): Promise<Metadata> {
+  const { lang } = await params;
+  if (!isUiLang(lang)) return {};
+  const dict = getDictionary(lang);
+  return {
+    title: dict.meta.tagsTitle,
+    description: dict.meta.tagsDescription,
+    alternates: pageAlternates(lang, "/tags"),
+  };
+}
 
-export const metadata: Metadata = {
-  title: dict.meta.tagsTitle,
-  description: dict.meta.tagsDescription,
-  alternates: pageAlternates("/tags"),
-};
-
-export default async function TagsPage() {
+export default async function TagsPage({ params }: PageProps<"/[lang]/tags">) {
+  const { lang } = await params;
+  if (!isUiLang(lang)) notFound();
+  const dict = getDictionary(lang);
   const tags = await getAllTags();
 
   return (
@@ -32,7 +40,7 @@ export default async function TagsPage() {
         <ul className="mt-12 flex flex-wrap gap-3 motion-safe:animate-[fade-up_800ms_var(--ease-out-expo)_120ms_both]">
           {tags.map((tag) => (
             <li key={tag.slug}>
-              <TagChip tag={tag} size="lg" count={plural(tag.count, dict.tags.count)} />
+              <TagChip lang={lang} tag={tag} size="lg" count={plural(tag.count, dict.tags.count, lang)} />
             </li>
           ))}
         </ul>

@@ -1,24 +1,28 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { fmt, type Dictionary } from "@/lib/i18n/get-dictionary";
+import { localePath, type UiLang } from "@/lib/i18n/ui";
 
 const linkClass =
   "inline-flex h-10 items-center gap-2 rounded-full border border-border px-4 text-sm text-fg transition-[background-color,border-color] duration-300 ease-apple hover:border-border-strong hover:bg-surface-hover";
 
 /** Newer/older pager driven by `?page=` (page 1 has no query string, for clean canonical URLs). */
 export function Pagination({
+  lang,
   basePath,
   page,
   pageCount,
   dict,
 }: {
+  lang: UiLang;
+  /** Unprefixed path of the list ("/"); the UI language prefix is added here. */
   basePath: string;
   page: number;
   pageCount: number;
   dict: Dictionary;
 }) {
   if (pageCount <= 1) return null;
-  const href = (p: number) => (p <= 1 ? basePath : `${basePath}?page=${p}`);
+  const href = (p: number) => localePath(lang, p <= 1 ? basePath : `${basePath}?page=${p}`);
   return (
     <nav aria-label={dict.a11y.pagination} className="flex items-center justify-between gap-4">
       <div className="min-w-0 flex-1">

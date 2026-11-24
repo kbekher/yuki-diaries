@@ -1,8 +1,8 @@
 "use client";
 /**
  * The post editor page: header (save status, preview, settings, publish), cover, title, subtitle
- * and the Tiptap body (dynamically imported, client-only). Posts are written in Russian only — readers use
- * their browser's translation — so spellcheck, typography and LanguageTool always run in Russian.
+ * and the Tiptap body (dynamically imported, client-only). The post language («Язык текста», ru/en/fr; default ru)
+ * drives spellcheck, typography and LanguageTool — and can be changed live in the settings panel.
  *
  * Data flow
  *  - All editable data lives in one `data` object mirrored in `dataRef` (so save() always sees the latest).
@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import type { CoverImage } from "@/db/schema";
 import type { PostContentInput, PostEditorData, PublishResult, SavePostInput } from "@/lib/admin/types";
-import { siteLocale } from "@/lib/i18n/config";
+import { DEFAULT_TEXT_LANGUAGE, TEXT_LANGUAGE_HTML, type TextLanguage } from "@/lib/i18n/config";
 import { typographText } from "@/lib/content/typography";
 import { deletePost, publishPost, savePost, unpublishPost } from "@/app/admin/actions";
 import { useToast } from "@/components/admin/toast";
@@ -76,6 +76,7 @@ type Data = {
   cover: CoverImage | null;
   featured: boolean;
   location: string;
+  language: TextLanguage;
   tagNames: string[];
   draft: Draft;
 };
@@ -119,6 +120,7 @@ function fromInitial(initial: PostEditorData | null): Data {
     cover: initial?.cover ?? null,
     featured: initial?.featured ?? false,
     location: initial?.location ?? "",
+    language: initial?.language ?? DEFAULT_TEXT_LANGUAGE,
     tagNames: initial?.tags.map((t) => t.name).filter(Boolean) ?? [],
     draft: source
       ? { title: source.title, excerpt: source.excerpt, contentJson: source.contentJson ?? EMPTY_DOC }
@@ -127,7 +129,7 @@ function fromInitial(initial: PostEditorData | null): Data {
 }
 
 function backupPayload(d: Data): LocalDraftData {
-  return { slug: d.slug, cover: d.cover, featured: d.featured, location: d.location, tagNames: d.tagNames, draft: d.draft };
+  return { slug: d.slug, cover: d.cover, featured: d.featured, location: d.location, language: d.language, tagNames: d.tagNames, draft: d.draft };
 }
 
 function samePayload(a: LocalDraftData, b: LocalDraftData): boolean {
@@ -205,6 +207,7 @@ export function PostEditor({ initial }: { initial: PostEditorData | null }) {
       cover: d.cover,
       featured: d.featured,
       location: d.location.trim() || null,
+      language: d.language,
       tagNames: d.tagNames,
       source,
     };
@@ -354,7 +357,7 @@ export function PostEditor({ initial }: { initial: PostEditorData | null }) {
   const typographField = (field: "title" | "excerpt") => {
     const current = dataRef.current.draft[field];
     if (!current) return;
-    const next = typographText(current, siteLocale, { capitalize: false });
+    const next = typographText(current, dataRef.current.language, { capitalize: false });
     if (next !== current) setDraftField(field, next);
   };
 
@@ -515,6 +518,7 @@ export function PostEditor({ initial }: { initial: PostEditorData | null }) {
       cover: b.cover,
       featured: b.featured,
       location: b.location,
+      language: b.language,
       tagNames: b.tagNames,
       draft: b.draft,
     }));
@@ -685,6 +689,7 @@ export function PostEditor({ initial }: { initial: PostEditorData | null }) {
           variant="title"
           value={title}
           label="Заголовок"
+          lang={TEXT_LANGUAGE_HTML[data.language]}
           placeholder="Заголовок"
           maxLength={200}
           onChange={(v) => setDraftField("title", v)}
@@ -699,6 +704,7 @@ export function PostEditor({ initial }: { initial: PostEditorData | null }) {
           variant="excerpt"
           value={draft.excerpt}
           label="Подзаголовок"
+          lang={TEXT_LANGUAGE_HTML[data.language]}
           placeholder="Подзаголовок — одна-две фразы о чём эта история"
           maxLength={300}
           onChange={(v) => setDraftField("excerpt", v)}
@@ -718,6 +724,7 @@ export function PostEditor({ initial }: { initial: PostEditorData | null }) {
           onBlur={onBodyBlur}
           title={title}
           saveStatus={saveStatus}
+          language={data.language}
         />
       </main>
 
@@ -744,6 +751,11 @@ export function PostEditor({ initial }: { initial: PostEditorData | null }) {
         location={data.location}
         onLocationChange={(location) => {
           update((cur) => ({ ...cur, location }));
+          markDirty();
+        }}
+        language={data.language}
+        onLanguageChange={(language) => {
+          update((cur) => ({ ...cur, language }));
           markDirty();
         }}
         excerpt={draft.excerpt}

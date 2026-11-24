@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CalendarClock, Trash2 } from "lucide-react";
 import { listTags } from "@/app/admin/actions";
+import { TEXT_LANGUAGES, TEXT_LANGUAGE_LABELS, isTextLanguage, type TextLanguage } from "@/lib/i18n/config";
 import { Dialog } from "./dialog";
 import { TagsInput } from "./tags-input";
 import { LocalTime, useIsClient } from "./time";
@@ -32,6 +33,8 @@ type Props = {
   onFeaturedChange: (value: boolean) => void;
   location: string;
   onLocationChange: (value: string) => void;
+  language: TextLanguage;
+  onLanguageChange: (value: TextLanguage) => void;
   excerpt: string;
   onExcerptChange: (value: string) => void;
   status: "draft" | "published" | "scheduled";
@@ -53,6 +56,8 @@ export function SettingsPanel(props: Props) {
     onFeaturedChange,
     location,
     onLocationChange,
+    language,
+    onLanguageChange,
     excerpt,
     onExcerptChange,
     status,
@@ -155,6 +160,27 @@ export function SettingsPanel(props: Props) {
             onChange={(e) => onLocationChange(e.target.value.replace(/[\r\n]+/g, " "))}
           />
           <p className="admin-hint">Где это было — показывается в записи на сайте.</p>
+        </section>
+
+        <section>
+          <label htmlFor="post-language" className="admin-label">
+            Язык текста
+          </label>
+          <select
+            id="post-language"
+            className="admin-input"
+            value={language}
+            onChange={(e) => {
+              if (isTextLanguage(e.target.value)) onLanguageChange(e.target.value);
+            }}
+          >
+            {TEXT_LANGUAGES.map((code) => (
+              <option key={code} value={code}>
+                {TEXT_LANGUAGE_LABELS[code]}
+              </option>
+            ))}
+          </select>
+          <p className="admin-hint">На каком языке написана запись: от него зависят проверка орфографии, типографика и проверка грамматики.</p>
         </section>
 
         <section>

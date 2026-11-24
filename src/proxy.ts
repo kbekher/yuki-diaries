@@ -1,11 +1,17 @@
 /**
  * Proxy (formerly "middleware") — runs before routes render (Node.js runtime by default).
  *
- * Only the admin auth gate lives here (the public site is Russian-only with plain URLs; old `/ru|/uk|/en/…`
- * links are permanently redirected in next.config.ts):
- *   /admin/** → no valid session ⇒ redirect to /admin/login?next=…;
- *               valid session on /admin/login ⇒ redirect to /admin. Rolling cookie refresh.
- *               (Every Server Action / Route Handler re-verifies the session itself.)
+ * 1. Public UI language (en | ru). Pages live in `app/(site)/[lang]/…`; Russian (the default) has NO URL prefix:
+ *      /…        → internal REWRITE to /ru/…   (the address bar keeps the unprefixed URL)
+ *      /en/…     → passes through
+ *      /ru/…, /uk/…  never get here: next.config.ts `redirects()` (which run BEFORE the proxy) 308 them to the
+ *                    unprefixed URL, and a rewrite target is not re-checked against redirects — so the internal
+ *                    /ru/… URL created below is never redirected back.
+ *    No language detection, no cookies: the language is whatever the URL says.
+ * 2. /admin/** auth gate (Russian only, never rewritten):
+ *      no valid session ⇒ redirect to /admin/login?next=…;
+ *      valid session on /admin/login ⇒ redirect to /admin. Rolling cookie refresh.
+ *      (Every Server Action / Route Handler re-verifies the session itself.)
  */
 import { NextResponse, type NextRequest } from "next/server";
 import {
@@ -18,8 +24,21 @@ import {
 } from "@/lib/auth/config";
 import { signSessionToken, verifySessionToken } from "@/lib/auth/jwt";
 
+/** Rewrites unprefixed public URLs to the internal `/ru/…` route; `/en/…` (and stray `/ru`, `/uk`) pass through. */
+function routePublic(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const first = pathname.split("/")[1];
+  if (first === "en" || first === "ru" || first === "uk") return NextResponse.next();
+
+  const url = request.nextUrl.clone();
+  url.pathname = pathname === "/" ? "/ru" : `/ru${pathname}`; // the query string is kept by clone()
+  return NextResponse.rewrite(url);
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  if (pathname !== "/admin" && !pathname.startsWith("/admin/")) return routePublic(request);
+
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = await verifySessionToken(token);
   const isLogin = pathname === LOGIN_PATH || pathname.startsWith(`${LOGIN_PATH}/`);
@@ -59,6 +78,12 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // `:path*` also matches zero segments, so this covers /admin itself.
-  matcher: ["/admin/:path*"],
+  matcher: [
+    // `:path*` also matches zero segments, so this covers /admin itself.
+    "/admin/:path*",
+    // Public pages, /rss.xml and the per-page OG/Twitter image routes. Skipped: Next internals, API routes, the admin
+    // (matched above) and the root-level metadata files that are NOT under [lang] (favicon, icon.svg, apple-icon,
+    // manifest, robots.txt, sitemap.xml). `(?:/|$)` keeps e.g. "/administrators" and "/iconic" matchable.
+    "/((?!_next(?:/|$)|api(?:/|$)|admin(?:/|$)|favicon\\.ico$|icon\\.svg$|apple-icon(?:/|$|-)|manifest\\.webmanifest$|robots\\.txt$|sitemap\\.xml$).*)",
+  ],
 };

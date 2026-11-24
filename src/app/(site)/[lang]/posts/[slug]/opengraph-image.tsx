@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { formatMonthYear } from "@/lib/i18n/get-dictionary";
+import { DEFAULT_UI_LANG, isUiLang } from "@/lib/i18n/ui";
 import { getPostBySlug } from "@/lib/posts/public-queries";
 import { site } from "@/lib/site";
 import { loadCoverDataUrl, loadOgFonts, OG_SIZE, OgCard } from "../../_lib/og";
@@ -9,13 +10,14 @@ export const size = OG_SIZE;
 export const contentType = "image/png";
 
 /** Post card: cover photo (if any) under a dark gradient, brand wordmark, "МЕСЯЦ ГОД | место" label, serif title. */
-export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function Image({ params }: { params: Promise<{ lang: string; slug: string }> }) {
+  const { lang: raw, slug } = await params;
+  const lang = isUiLang(raw) ? raw : DEFAULT_UI_LANG;
   const post = await getPostBySlug(slug);
 
   const title = post?.title ?? site.name;
   const eyebrow = post
-    ? [formatMonthYear(post.publishedAt), post.location].filter(Boolean).join("  |  ")
+    ? [formatMonthYear(post.publishedAt, lang), post.location].filter(Boolean).join("  |  ")
     : site.name;
   const [fonts, cover] = await Promise.all([
     loadOgFonts(`${eyebrow}${title}`),

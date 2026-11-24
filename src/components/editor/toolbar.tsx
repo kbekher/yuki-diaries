@@ -3,7 +3,7 @@
  * Sticky, minimal top toolbar (the main formatting UI on phones, where a selection bubble is awkward).
  * Scrolls horizontally on narrow screens. Arrow keys move between buttons (roving focus).
  */
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { useEditorState } from "@tiptap/react";
 import {
@@ -136,10 +136,33 @@ export function EditorToolbar({
   const [colorOpen, setColorOpen] = useState(false);
   const [alignOpen, setAlignOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
+  const barRef = useRef<HTMLDivElement>(null);
   const colorRef = useRef<HTMLButtonElement>(null);
   const alignRef = useRef<HTMLButtonElement>(null);
   const linkRef = useRef<HTMLButtonElement>(null);
   const imageRef = useRef<HTMLButtonElement>(null);
+
+  // The toolbar wraps onto several rows on narrow screens. Groups are separated by a hairline drawn in the gap
+  // BEFORE each group; the first group of every row gets `data-row-start` so no separator dangles at a line start/end.
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const mark = () => {
+      const groups = Array.from(bar.querySelectorAll<HTMLElement>(".editor-tb-group"));
+      let prevTop = Number.NaN;
+      for (const g of groups) {
+        const top = g.offsetTop;
+        const start = top !== prevTop;
+        if ((g.dataset.rowStart === "true") !== start) g.dataset.rowStart = start ? "true" : "false";
+        prevTop = top;
+      }
+    };
+    mark();
+    const ro = new ResizeObserver(mark);
+    ro.observe(bar);
+    bar.querySelectorAll(".editor-tb-group").forEach((g) => ro.observe(g));
+    return () => ro.disconnect();
+  }, []);
 
   const setBlock = (value: string) => {
     const chain = editor.chain().focus();
@@ -167,7 +190,8 @@ export function EditorToolbar({
       role="toolbar"
       aria-label="Панель форматирования"
       aria-orientation="horizontal"
-      className="editor-toolbar admin-scroll-x"
+      ref={barRef}
+      className="editor-toolbar"
       onKeyDown={(e) => {
         if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
         const target = e.target as HTMLElement;
@@ -179,89 +203,95 @@ export function EditorToolbar({
         items[(i + (e.key === "ArrowRight" ? 1 : -1) + items.length) % items.length]?.focus();
       }}
     >
-      <ToolButton label="Отменить" keys="Mod+Z" disabled={!s.canUndo} onClick={() => editor.chain().focus().undo().run()}>
-        <Undo2 className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <ToolButton label="Повторить" keys="Mod+Shift+Z" disabled={!s.canRedo} onClick={() => editor.chain().focus().redo().run()}>
-        <Redo2 className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <span className="editor-sep" aria-hidden />
+      <div className="editor-tb-group" role="group" aria-label="История">
+        <ToolButton label="Отменить" keys="Mod+Z" disabled={!s.canUndo} onClick={() => editor.chain().focus().undo().run()}>
+          <Undo2 className="size-[18px]" aria-hidden />
+        </ToolButton>
+        <ToolButton label="Повторить" keys="Mod+Shift+Z" disabled={!s.canRedo} onClick={() => editor.chain().focus().redo().run()}>
+          <Redo2 className="size-[18px]" aria-hidden />
+        </ToolButton>
+      </div>
 
-      <label className="sr-only" htmlFor="editor-block-type">
-        Тип блока
-      </label>
-      <select
-        id="editor-block-type"
-        className="editor-select"
-        value={s.block}
-        onChange={(e) => setBlock(e.target.value)}
-      >
-        <option value="p">Текст</option>
-        <option value="h2">Заголовок</option>
-        <option value="h3">Подзаголовок</option>
-        <option value="quote">Цитата</option>
-        <option value="code">Код</option>
-      </select>
-      <span className="editor-sep" aria-hidden />
+      <div className="editor-tb-group" role="group" aria-label="Тип блока">
+        <label className="sr-only" htmlFor="editor-block-type">
+          Тип блока
+        </label>
+        <select
+          id="editor-block-type"
+          className="editor-select"
+          value={s.block}
+          onChange={(e) => setBlock(e.target.value)}
+        >
+          <option value="p">Текст</option>
+          <option value="h2">Заголовок</option>
+          <option value="h3">Подзаголовок</option>
+          <option value="quote">Цитата</option>
+          <option value="code">Код</option>
+        </select>
+      </div>
 
-      <ToolButton label="Жирный" keys="Mod+B" active={s.bold} onClick={() => editor.chain().focus().toggleBold().run()}>
-        <Bold className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <ToolButton label="Курсив" keys="Mod+I" active={s.italic} onClick={() => editor.chain().focus().toggleItalic().run()}>
-        <Italic className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <ToolButton label="Подчёркнутый" keys="Mod+U" active={s.underline} onClick={() => editor.chain().focus().toggleUnderline().run()}>
-        <Underline className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <ToolButton label="Цвет и маркер" active={s.color} expanded={colorOpen} btnRef={colorRef} onClick={() => setColorOpen((v) => !v)}>
-        <Palette className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <ToolButton label="Ссылка" keys="Mod+K" active={s.link} expanded={linkOpen} btnRef={linkRef} onClick={() => setLinkOpen(!linkOpen)}>
-        <Link2 className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <span className="editor-sep" aria-hidden />
+      <div className="editor-tb-group" role="group" aria-label="Текст">
+        <ToolButton label="Жирный" keys="Mod+B" active={s.bold} onClick={() => editor.chain().focus().toggleBold().run()}>
+          <Bold className="size-[18px]" aria-hidden />
+        </ToolButton>
+        <ToolButton label="Курсив" keys="Mod+I" active={s.italic} onClick={() => editor.chain().focus().toggleItalic().run()}>
+          <Italic className="size-[18px]" aria-hidden />
+        </ToolButton>
+        <ToolButton label="Подчёркнутый" keys="Mod+U" active={s.underline} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+          <Underline className="size-[18px]" aria-hidden />
+        </ToolButton>
+        <ToolButton label="Цвет и маркер" active={s.color} expanded={colorOpen} btnRef={colorRef} onClick={() => setColorOpen((v) => !v)}>
+          <Palette className="size-[18px]" aria-hidden />
+        </ToolButton>
+        <ToolButton label="Ссылка" keys="Mod+K" active={s.link} expanded={linkOpen} btnRef={linkRef} onClick={() => setLinkOpen(!linkOpen)}>
+          <Link2 className="size-[18px]" aria-hidden />
+        </ToolButton>
+      </div>
 
-      <ToolButton label="Маркированный список" keys="Mod+Shift+8" active={s.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-        <List className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <ToolButton label="Нумерованный список" keys="Mod+Shift+7" active={s.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-        <ListOrdered className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <ToolButton label={`Выравнивание: ${ALIGN_LABELS[s.align]}`} expanded={alignOpen} btnRef={alignRef} onClick={() => setAlignOpen((v) => !v)}>
-        <AlignIcon className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <ToolButton label="Добавить изображение" expanded={imageOpen} btnRef={imageRef} onClick={() => setImageOpen((v) => !v)}>
-        <ImagePlus className="size-[18px]" aria-hidden />
-      </ToolButton>
-      <span className="editor-sep" aria-hidden />
+      <div className="editor-tb-group" role="group" aria-label="Блоки">
+        <ToolButton label="Маркированный список" keys="Mod+Shift+8" active={s.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+          <List className="size-[18px]" aria-hidden />
+        </ToolButton>
+        <ToolButton label="Нумерованный список" keys="Mod+Shift+7" active={s.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+          <ListOrdered className="size-[18px]" aria-hidden />
+        </ToolButton>
+        <ToolButton label={`Выравнивание: ${ALIGN_LABELS[s.align]}`} expanded={alignOpen} btnRef={alignRef} onClick={() => setAlignOpen((v) => !v)}>
+          <AlignIcon className="size-[18px]" aria-hidden />
+        </ToolButton>
+        <ToolButton label="Добавить изображение" expanded={imageOpen} btnRef={imageRef} onClick={() => setImageOpen((v) => !v)}>
+          <ImagePlus className="size-[18px]" aria-hidden />
+        </ToolButton>
+      </div>
 
-      <button
-        type="button"
-        className="admin-btn admin-btn-ghost admin-btn-sm shrink-0"
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onTypograph}
-        title={`Типограф: кавычки, тире, пробелы (${shortcut("Mod+Alt+T")})`}
-        aria-label="Типограф: исправить кавычки, тире и пробелы во всём тексте"
-      >
-        <Wand2 className="size-4" aria-hidden />
-        <span className="hidden sm:inline">Типограф</span>
-      </button>
-      <button
-        type="button"
-        className={clsx("admin-btn admin-btn-sm shrink-0", ltEnabled ? "admin-btn-secondary" : "admin-btn-ghost")}
-        aria-pressed={ltEnabled}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onToggleLt}
-        title={ltEnabled ? "Проверка орфографии и грамматики включена — нажмите, чтобы выключить" : "Включить проверку орфографии и грамматики"}
-        aria-label={ltEnabled ? `Проверка текста включена. ${ltLabel}` : "Проверить орфографию и грамматику"}
-      >
-        {ltStatus.state === "checking" ? (
-          <Loader2 className="size-4 animate-spin" aria-hidden />
-        ) : (
-          <SpellCheck2 className={clsx("size-4", ltEnabled && ltStatus.state === "idle" && ltStatus.count > 0 && "text-[var(--tc-red)]")} aria-hidden />
-        )}
-        <span aria-live="polite">{ltEnabled ? ltLabel : "Проверить"}</span>
-      </button>
+      <div className="editor-tb-group" role="group" aria-label="Проверка текста">
+        <button
+          type="button"
+          className="admin-btn admin-btn-ghost admin-btn-sm shrink-0"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onTypograph}
+          title={`Типограф: кавычки, тире, пробелы (${shortcut("Mod+Alt+T")})`}
+          aria-label="Типограф: исправить кавычки, тире и пробелы во всём тексте"
+        >
+          <Wand2 className="size-4" aria-hidden />
+          <span className="hidden sm:inline">Типограф</span>
+        </button>
+        <button
+          type="button"
+          className={clsx("admin-btn admin-btn-sm shrink-0", ltEnabled ? "admin-btn-secondary" : "admin-btn-ghost")}
+          aria-pressed={ltEnabled}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onToggleLt}
+          title={ltEnabled ? "Проверка орфографии и грамматики включена — нажмите, чтобы выключить" : "Включить проверку орфографии и грамматики"}
+          aria-label={ltEnabled ? `Проверка текста включена. ${ltLabel}` : "Проверить орфографию и грамматику"}
+        >
+          {ltStatus.state === "checking" ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <SpellCheck2 className={clsx("size-4", ltEnabled && ltStatus.state === "idle" && ltStatus.count > 0 && "text-[var(--tc-red)]")} aria-hidden />
+          )}
+          <span aria-live="polite">{ltEnabled ? ltLabel : "Проверить"}</span>
+        </button>
+      </div>
 
       <Popover open={colorOpen} onClose={() => setColorOpen(false)} anchorRef={colorRef} label="Цвет текста и маркер" className="editor-menu w-64 p-3">
         <div className="space-y-3">

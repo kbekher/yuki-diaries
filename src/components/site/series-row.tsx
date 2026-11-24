@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import clsx from "clsx";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
+import { localePath, type UiLang } from "@/lib/i18n/ui";
 import type { PostSummary } from "@/lib/posts/public-queries";
 import { PostLabel } from "./post-label";
 import { PostImage } from "./post-image";
@@ -14,22 +15,24 @@ import { PostImage } from "./post-image";
  * The title is the row's focusable link; the pill and the collage are mouse shortcuts to the same URL.
  */
 export function SeriesRow({
+  lang,
   dict,
   post,
   flip = false,
   priority = false,
 }: {
+  lang: UiLang;
   dict: Dictionary;
   post: PostSummary;
   flip?: boolean;
   priority?: boolean;
 }) {
-  const href = `/posts/${post.slug}`;
+  const href = localePath(lang, `/posts/${post.slug}`);
   const count = Math.min(post.images.length, 1);
 
   const text = (
     <div className={clsx("flex flex-col", count > 0 && flip && "lg:order-2")}>
-      <PostLabel publishedAt={post.publishedAt} location={post.location} />
+      <PostLabel lang={lang} publishedAt={post.publishedAt} location={post.location} />
       <h3
         className={clsx(
           "mt-3.5 font-serif font-semibold text-fg-strong text-balance",
@@ -38,12 +41,13 @@ export function SeriesRow({
             : "text-[1.75rem] leading-[1.15] tracking-[-0.01em] sm:text-[1.875rem]",
         )}
       >
-        <Link href={href} className="rounded-sm transition-colors duration-300 hover:text-accent">
+        <Link href={href} lang={post.language} className="rounded-sm transition-colors duration-300 hover:text-accent">
           {post.title}
         </Link>
       </h3>
       {post.excerpt && (
         <p
+          lang={post.language}
           className={clsx(
             "mt-3.5 leading-[1.7] text-fg-muted text-pretty",
             count === 0 ? "max-w-[52ch] text-[1.0625rem]" : "max-w-[24rem] text-[0.9375rem]",

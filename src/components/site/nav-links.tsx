@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import clsx from "clsx";
+import { localePath, splitLocale, type UiLang } from "@/lib/i18n/ui";
 
 export type NavLabels = { home: string; tags: string; search: string };
 
@@ -20,11 +21,13 @@ const ITEMS: Item[] = [
  * (usePathname suspends on routes with unknown params), in which case nothing is marked current.
  */
 export function NavLinksView({
+  lang,
   labels,
   pathname,
   layout = "row",
   onNavigate,
 }: {
+  lang: UiLang;
   labels: NavLabels;
   pathname: string | null;
   layout?: "row" | "column";
@@ -33,12 +36,12 @@ export function NavLinksView({
   return (
     <ul className={clsx("flex", layout === "row" ? "items-center gap-1" : "flex-col gap-1")}>
       {ITEMS.map((item) => {
-        const current = pathname !== null && item.match(pathname);
+        const current = pathname !== null && item.match(splitLocale(pathname).path);
         const isSearch = item.key === "search";
         return (
           <li key={item.key}>
             <Link
-              href={item.href}
+              href={localePath(lang, item.href)}
               onClick={onNavigate}
               aria-current={current ? "page" : undefined}
               aria-label={isSearch && layout === "row" ? labels.search : undefined}

@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import type { CoverImage } from "@/db/schema";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
+import type { UiLang } from "@/lib/i18n/ui";
 
 const UNSPLASH_UTM = "utm_source=sara_blog&utm_medium=referral";
 
@@ -11,10 +12,21 @@ function withUtm(url: string): string {
 const linkClass = "underline decoration-border-strong underline-offset-2 transition-colors hover:text-fg-muted";
 
 /** Required Unsplash attribution ("Фото: Name на Unsplash"); renders nothing for uploads / missing credits. */
-export function PhotoCredit({ cover, dict, className }: { cover: CoverImage; dict: Dictionary; className?: string }) {
+export function PhotoCredit({
+  cover,
+  dict,
+  lang,
+  className,
+}: {
+  cover: CoverImage;
+  dict: Dictionary;
+  /** UI language; set when the credit sits inside content marked with another `lang` (the post article). */
+  lang?: UiLang;
+  className?: string;
+}) {
   if (cover.source !== "unsplash" || !cover.credit) return null;
   return (
-    <figcaption className={clsx("text-[0.8125rem] text-fg-subtle", className)}>
+    <figcaption lang={lang} className={clsx("text-[0.8125rem] text-fg-subtle", className)}>
       {dict.post.photoCredit.before}
       <a href={withUtm(cover.credit.profileUrl)} className={linkClass}>
         {cover.credit.name}

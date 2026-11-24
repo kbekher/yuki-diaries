@@ -4,6 +4,7 @@
  */
 import type { JSONContent } from "@tiptap/core";
 import type { CoverImage } from "@/db/schema";
+import type { TextLanguage } from "@/lib/i18n/config";
 
 export type ActionResult<T = undefined> =
   | ({ ok: true } & (T extends undefined ? object : { data: T }))
@@ -27,6 +28,8 @@ export type PostEditorData = {
   featured: boolean;
   /** Where the story happens, e.g. «Альпы, Швейцария» (shown on the post). Null = not set. */
   location?: string | null;
+  /** «Язык текста»: the language the post is written in (drives spellcheck, typography, LanguageTool). Default "ru". */
+  language?: TextLanguage;
   /** ISO string or null */
   publishedAt: string | null;
   updatedAt: string;
@@ -56,6 +59,8 @@ export type SavePostInput = {
   featured: boolean;
   /** «Место», ≤ 80 chars; empty/omitted → null. */
   location?: string | null;
+  /** «Язык текста»; omitted → "ru". */
+  language?: TextLanguage;
   /** tag display names, e.g. ["путешествия", "семья"] */
   tagNames: string[];
   /** the post's text */

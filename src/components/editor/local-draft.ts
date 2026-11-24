@@ -4,12 +4,14 @@
  */
 import type { JSONContent } from "@tiptap/core";
 import type { CoverImage } from "@/db/schema";
+import { DEFAULT_TEXT_LANGUAGE, isTextLanguage, type TextLanguage } from "@/lib/i18n/config";
 
 export type LocalDraftData = {
   slug: string;
   cover: CoverImage | null;
   featured: boolean;
   location: string;
+  language: TextLanguage;
   tagNames: string[];
   draft: { title: string; excerpt: string; contentJson: JSONContent };
 };
@@ -36,7 +38,7 @@ export function readLocalDraft(postId: string | null): LocalDraft | null {
     if (!draft) return null;
     return {
       savedAt: parsed.savedAt,
-      data: { slug: rest.slug ?? "", cover: rest.cover ?? null, featured: !!rest.featured, location: typeof rest.location === "string" ? rest.location : "", tagNames: rest.tagNames ?? [], draft },
+      data: { slug: rest.slug ?? "", cover: rest.cover ?? null, featured: !!rest.featured, location: typeof rest.location === "string" ? rest.location : "", language: isTextLanguage(rest.language) ? rest.language : DEFAULT_TEXT_LANGUAGE, tagNames: rest.tagNames ?? [], draft },
     };
   } catch {
     return null;

@@ -1,7 +1,7 @@
 import "server-only";
 import type { LanguageToolMatch } from "@/lib/admin/types";
 
-export const LANGUAGETOOL_LANGUAGES = ["ru-RU", "uk-UA", "en-US"] as const;
+export const LANGUAGETOOL_LANGUAGES = ["ru-RU", "uk-UA", "en-US", "fr"] as const;
 export type LanguageToolLanguage = (typeof LANGUAGETOOL_LANGUAGES)[number];
 /** Request size limit of the free public API. */
 export const LANGUAGETOOL_MAX_CHARS = 20_000;

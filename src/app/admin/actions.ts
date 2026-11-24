@@ -25,7 +25,7 @@ import type {
 import { LOGIN_PATH } from "@/lib/auth/config";
 import { deleteSession, getSession } from "@/lib/auth/session";
 import { renderContent } from "@/lib/content";
-import { siteLocale } from "@/lib/i18n/config";
+import { DEFAULT_TEXT_LANGUAGE, TEXT_LANGUAGES, siteLocale } from "@/lib/i18n/config";
 import {
   collectBlobUrls,
   getPostBundle,
@@ -173,6 +173,8 @@ const saveSchema = z.object({
   cover: coverSchema,
   featured: z.boolean(),
   location: locationSchema,
+  // Optional: a save without it (older tab, old local draft) must not reset the post's language.
+  language: z.enum(TEXT_LANGUAGES).optional(),
   tagNames: z.array(z.string().max(40, "Тег — не более 40 символов.")).max(MAX_TAGS, `Не более ${MAX_TAGS} тегов.`),
   source: contentSchema,
 });
@@ -253,7 +255,7 @@ export async function savePost(
       existing
         ? db
             .update(posts)
-            .set({ slug, cover, featured: data.featured, location: data.location, sourceLocale: siteLocale, updatedAt: now })
+            .set({ slug, cover, featured: data.featured, location: data.location, ...(data.language && { language: data.language }), sourceLocale: siteLocale, updatedAt: now })
             .where(eq(posts.id, id))
         : db.insert(posts).values({
             id,
@@ -263,6 +265,7 @@ export async function savePost(
             cover,
             featured: data.featured,
             location: data.location,
+            language: data.language ?? DEFAULT_TEXT_LANGUAGE,
             createdAt: now,
             updatedAt: now,
           }),

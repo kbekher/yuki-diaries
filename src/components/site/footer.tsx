@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cacheLife } from "next/cache";
 import { Rss } from "lucide-react";
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
+import { localePath, type UiLang } from "@/lib/i18n/ui";
 import { site } from "@/lib/site";
 import { NewsletterForm } from "./newsletter-form";
 
@@ -19,7 +20,7 @@ async function CopyrightYear() {
  * Minimal footer: brand, small links, copyright, one hairline. The newsletter strip sits above it on every page
  * except the home page, which shows its own strip (marked [data-home-newsletter]; hidden here via CSS :has()).
  */
-export function SiteFooter({ dict }: { dict: Dictionary }) {
+export function SiteFooter({ lang, dict }: { lang: UiLang; dict: Dictionary }) {
   return (
     <footer className="mt-24 sm:mt-32">
       <div className="mx-auto max-w-[75rem] px-5 sm:px-8 lg:px-12">
@@ -28,24 +29,24 @@ export function SiteFooter({ dict }: { dict: Dictionary }) {
         </div>
         <div className="flex flex-col gap-5 border-t border-border pt-7 pb-10 text-[0.8125rem] text-fg-subtle sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <Link href="/" className="brand-wordmark inline-flex min-h-11 items-center text-[0.9375rem] text-fg-strong sm:min-h-8">
+            <Link href={localePath(lang, "/")} className="brand-wordmark inline-flex min-h-11 items-center text-[0.9375rem] text-fg-strong sm:min-h-8">
               {site.name}
             </Link>
             <nav aria-label={dict.a11y.footerNav}>
               <ul className="flex flex-wrap items-center gap-x-1">
                 <li>
-                  <Link href="/tags" className="inline-flex min-h-11 items-center px-2 transition-colors hover:text-fg-strong sm:min-h-8">
+                  <Link href={localePath(lang, "/tags")} className="inline-flex min-h-11 items-center px-2 transition-colors hover:text-fg-strong sm:min-h-8">
                     {dict.nav.tags}
                   </Link>
                 </li>
                 <li>
-                  <Link href="/search" className="inline-flex min-h-11 items-center px-2 transition-colors hover:text-fg-strong sm:min-h-8">
+                  <Link href={localePath(lang, "/search")} className="inline-flex min-h-11 items-center px-2 transition-colors hover:text-fg-strong sm:min-h-8">
                     {dict.nav.search}
                   </Link>
                 </li>
                 <li>
                   <a
-                    href="/rss.xml"
+                    href={localePath(lang, "/rss.xml")}
                     className="inline-flex min-h-11 items-center gap-1.5 px-2 transition-colors hover:text-fg-strong sm:min-h-8"
                   >
                     <Rss aria-hidden className="size-3.5" />

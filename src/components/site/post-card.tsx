@@ -1,6 +1,7 @@
 import Link from "next/link";
 import clsx from "clsx";
-import { formatYearMonth, type Dictionary } from "@/lib/i18n/get-dictionary";
+import { formatYearMonth } from "@/lib/i18n/get-dictionary";
+import { localePath, type UiLang } from "@/lib/i18n/ui";
 import type { PostSummary } from "@/lib/posts/public-queries";
 import { PostImage } from "./post-image";
 
@@ -9,13 +10,14 @@ import { PostImage } from "./post-image";
  * along the right edge and a small diagonal stroke bottom-left. Posts without images get a text-only card.
  * The title link stretches over the text area (one tab stop, title = accessible name); the image links too.
  */
-export function PostCard({ post }: { dict?: Dictionary; post: PostSummary }) {
+export function PostCard({ lang, post }: { lang: UiLang; post: PostSummary }) {
+  const href = localePath(lang, `/posts/${post.slug}`);
   const hasImage = post.images.length > 0;
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-[1.125rem] bg-bg-elevated transition-transform duration-500 ease-out-expo motion-safe:hover:-translate-y-0.5">
       {hasImage && (
         // Mouse shortcut only: the title link below is the card's single tab stop and accessible name.
-        <Link href={`/posts/${post.slug}`} tabIndex={-1} aria-hidden className="block shrink-0">
+        <Link href={href} tabIndex={-1} aria-hidden className="block shrink-0">
           <PostImage
             post={post}
             tone="bw"
@@ -32,7 +34,8 @@ export function PostCard({ post }: { dict?: Dictionary; post: PostSummary }) {
           )}
         >
           <Link
-            href={`/posts/${post.slug}`}
+            href={href}
+            lang={post.language}
             className="rounded-sm after:absolute after:inset-0 after:content-['']"
           >
             {post.title}
@@ -40,6 +43,7 @@ export function PostCard({ post }: { dict?: Dictionary; post: PostSummary }) {
         </h3>
         {post.excerpt && (
           <p
+            lang={post.language}
             className={clsx(
               "mt-2 text-[0.8125rem] leading-relaxed text-fg-muted text-pretty",
               hasImage ? "line-clamp-3" : "line-clamp-6",
@@ -52,7 +56,7 @@ export function PostCard({ post }: { dict?: Dictionary; post: PostSummary }) {
           dateTime={post.publishedAt.toISOString()}
           className="absolute top-5.5 right-4.5 text-[0.625rem] tracking-[0.2em] text-fg-subtle tabular-nums [writing-mode:vertical-rl]"
         >
-          {formatYearMonth(post.publishedAt)}
+          {formatYearMonth(post.publishedAt, lang)}
         </time>
         <span
           aria-hidden
@@ -64,11 +68,11 @@ export function PostCard({ post }: { dict?: Dictionary; post: PostSummary }) {
 }
 
 export function PostGrid({
-  dict,
+  lang,
   posts,
   className,
 }: {
-  dict: Dictionary;
+  lang: UiLang;
   posts: PostSummary[];
   className?: string;
 }) {
@@ -80,7 +84,7 @@ export function PostGrid({
           className="motion-safe:animate-[fade-up_700ms_var(--ease-out-expo)_both]"
           style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
         >
-          <PostCard dict={dict} post={post} />
+          <PostCard lang={lang} post={post} />
         </li>
       ))}
     </ul>

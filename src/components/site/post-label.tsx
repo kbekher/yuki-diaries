@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { fmt, formatMonthYear, type Dictionary } from "@/lib/i18n/get-dictionary";
+import type { UiLang } from "@/lib/i18n/ui";
 
 /**
  * Tracked label line: "НОЯБРЬ 2026 | Альпы, Швейцария · 6 мин" (month + year in the site time zone, accent).
@@ -7,12 +8,15 @@ import { fmt, formatMonthYear, type Dictionary } from "@/lib/i18n/get-dictionary
  * Each dynamic part is its own element (translation-safe).
  */
 export function PostLabel({
+  lang,
   publishedAt,
   location,
   readingMinutes,
   dict,
   className,
 }: {
+  /** UI language (month names, "min"). */
+  lang: UiLang;
   publishedAt: Date;
   location?: string | null;
   readingMinutes?: number;
@@ -20,9 +24,9 @@ export function PostLabel({
   className?: string;
 }) {
   return (
-    <p className={clsx("site-label flex flex-wrap items-center gap-x-2.5 gap-y-1", className)}>
+    <p lang={lang} className={clsx("site-label flex flex-wrap items-center gap-x-2.5 gap-y-1", className)}>
       <time dateTime={publishedAt.toISOString()} className="site-label-accent">
-        {formatMonthYear(publishedAt)}
+        {formatMonthYear(publishedAt, lang)}
       </time>
       {location && (
         <>

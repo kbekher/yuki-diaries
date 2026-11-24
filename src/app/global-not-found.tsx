@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { siteLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { site } from "@/lib/site";
 import { ThemeScript } from "@/components/theme-script";
@@ -27,7 +26,7 @@ export const viewport: Viewport = {
 
 export default function GlobalNotFound() {
   return (
-    <html lang={siteLocale} className={fontVariables} suppressHydrationWarning>
+    <html lang="ru" className={fontVariables} suppressHydrationWarning>
       <head>
         <ThemeScript />
         <TranslateGuard />

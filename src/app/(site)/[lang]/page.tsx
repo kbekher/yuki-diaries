@@ -3,6 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { ArrowDown, Feather } from "lucide-react";
 import { getDictionary, type Dictionary } from "@/lib/i18n/get-dictionary";
+import { isUiLang, type UiLang } from "@/lib/i18n/ui";
 import { getLatestPosts, getPublishedPosts, type PostSummary } from "@/lib/posts/public-queries";
 import { getSiteSettings } from "@/lib/site-settings";
 import { site } from "@/lib/site";
@@ -17,15 +18,20 @@ import { PhotoCredit } from "@/components/site/photo-credit";
 import { PostGridSkeleton } from "@/components/site/skeletons";
 import { pageAlternates } from "./_lib/seo";
 
-export const metadata: Metadata = { alternates: pageAlternates("/") };
+export async function generateMetadata({ params }: PageProps<"/[lang]">): Promise<Metadata> {
+  const { lang } = await params;
+  return isUiLang(lang) ? { alternates: pageAlternates(lang, "/") } : {};
+}
 
 /** How many of the newest posts get a full "Последние записи" row; the rest go to the archive grid. */
 const SERIES_COUNT = 3;
 
 const WRAP = "mx-auto max-w-[75rem] px-5 sm:px-8 lg:px-12";
 
-export default async function HomePage({ searchParams }: PageProps<"/">) {
-  const dict = getDictionary();
+export default async function HomePage({ params, searchParams }: PageProps<"/[lang]">) {
+  const { lang } = await params;
+  if (!isUiLang(lang)) notFound();
+  const dict = getDictionary(lang);
   const [latest, settings] = await Promise.all([getLatestPosts(SERIES_COUNT), getSiteSettings()]);
   // Portrait: the one set in the admin, else the first latest post's cover, else no image column at all.
   const portrait = settings.heroPortrait ?? latest.find((p) => p.cover)?.cover ?? null;
@@ -45,12 +51,12 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               <SectionTitle id="latest-title">{dict.home.latestPosts}</SectionTitle>
               <div className="flex flex-col gap-16 sm:gap-22">
                 {latest.map((post, i) => (
-                  <SeriesRow key={post.id} dict={dict} post={post} flip={i % 2 === 1} priority={i === 0 && !portrait} />
+                  <SeriesRow key={post.id} lang={lang} dict={dict} post={post} flip={i % 2 === 1} priority={i === 0 && !portrait} />
                 ))}
               </div>
             </section>
             <Suspense fallback={<ArchiveFallback dict={dict} />}>
-              <Archive dict={dict} exclude={latest.map((p) => p.slug)} searchParams={searchParams} />
+              <Archive lang={lang} dict={dict} exclude={latest.map((p) => p.slug)} searchParams={searchParams} />
             </Suspense>
           </>
         ) : (
@@ -146,13 +152,15 @@ function ArchiveFallback({ dict }: { dict: Dictionary }) {
 
 /** The paginated archive (everything except the "Последние записи" rows). Reads `?page`, so it streams in Suspense. */
 async function Archive({
+  lang,
   dict,
   exclude,
   searchParams,
 }: {
+  lang: UiLang;
   dict: Dictionary;
   exclude: PostSummary["slug"][];
-  searchParams: PageProps<"/">["searchParams"];
+  searchParams: PageProps<"/[lang]">["searchParams"];
 }) {
   const raw = (await searchParams).page;
   const page = Math.max(1, Number.parseInt(Array.isArray(raw) ? raw[0] : (raw ?? "1"), 10) || 1);
@@ -166,9 +174,9 @@ async function Archive({
   return (
     <section id="archive" aria-labelledby="archive-title" className="mt-24 scroll-mt-24 sm:mt-28">
       <SectionTitle id="archive-title">{dict.home.archive}</SectionTitle>
-      <PostGrid dict={dict} posts={result.posts} />
+      <PostGrid lang={lang} posts={result.posts} />
       <div className="mt-12">
-        <Pagination basePath="/" page={result.page} pageCount={result.pageCount} dict={dict} />
+        <Pagination lang={lang} basePath="/" page={result.page} pageCount={result.pageCount} dict={dict} />
       </div>
     </section>
   );

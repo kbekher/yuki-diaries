@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { loadBrandFont, OG_COLORS } from "./(site)/_lib/og";
+import { loadBrandFont, OG_COLORS } from "./(site)/[lang]/_lib/og";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";

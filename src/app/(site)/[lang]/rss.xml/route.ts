@@ -1,7 +1,8 @@
-import { siteLocaleTag } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { DEFAULT_UI_LANG, isUiLang, localePath, UI_LANG_TAG } from "@/lib/i18n/ui";
 import { getFeedPosts } from "@/lib/posts/public-queries";
 import { site } from "@/lib/site";
-import { absoluteUrl, RSS_PATH } from "../_lib/seo";
+import { absoluteUrl, rssPath } from "../_lib/seo";
 
 /** XML-escapes text content and attribute values. */
 function xml(value: string): string {
@@ -23,17 +24,24 @@ function absolutizeHtml(html: string): string {
   return html.replace(/(\s(?:src|href)=")\/(?!\/)/g, `$1${absoluteUrl("/")}`);
 }
 
-/** RSS 2.0 feed with full post content. Cached via the post queries (tag "posts"). */
-export async function GET() {
+/**
+ * RSS 2.0 feed with full post content. Cached via the post queries (tag "posts"). `/rss.xml` (served as `/ru/rss.xml`
+ * by the proxy rewrite) and `/en/rss.xml` list the same posts; only the channel's UI strings and links differ.
+ * Post content is never translated, so each item is tagged with the post's own language (`dc:language`).
+ */
+export async function GET(_request: Request, { params }: RouteContext<"/[lang]/rss.xml">) {
+  const { lang: raw } = await params;
+  const lang = isUiLang(raw) ? raw : DEFAULT_UI_LANG;
+  const dict = getDictionary(lang);
   const posts = await getFeedPosts();
 
-  const home = absoluteUrl("/");
-  const self = absoluteUrl(RSS_PATH);
+  const home = absoluteUrl(localePath(lang, "/"));
+  const self = absoluteUrl(rssPath(lang));
   const lastBuild = posts.reduce<Date | null>((max, p) => (!max || p.updatedAt > max ? p.updatedAt : max), null);
 
   const items = posts
     .map((post) => {
-      const link = absoluteUrl(`/posts/${post.slug}`);
+      const link = absoluteUrl(localePath(lang, `/posts/${post.slug}`));
       const cover = post.cover
         ? `<p><img src="${xml(post.cover.url)}" alt="${xml(post.cover.alt)}" /></p>`
         : "";
@@ -44,6 +52,7 @@ export async function GET() {
         `<guid isPermaLink="true">${xml(link)}</guid>`,
         `<pubDate>${post.publishedAt.toUTCString()}</pubDate>`,
         `<dc:creator>${xml(site.author)}</dc:creator>`,
+        `<dc:language>${xml(post.language)}</dc:language>`,
         post.excerpt ? `<description>${cdata(post.excerpt)}</description>` : "",
         ...post.tags.map((t) => `<category>${xml(t.name)}</category>`),
         `<content:encoded>${cdata(cover + absolutizeHtml(post.contentHtml))}</content:encoded>`,
@@ -60,8 +69,8 @@ export async function GET() {
 <channel>
 <title>${xml(site.name)}</title>
 <link>${xml(home)}</link>
-<description>${xml(site.description)}</description>
-<language>${siteLocaleTag}</language>
+<description>${xml(dict.meta.siteDescription)}</description>
+<language>${UI_LANG_TAG[lang]}</language>
 <atom:link href="${xml(self)}" rel="self" type="application/rss+xml" />
 <generator>Next.js</generator>
 ${lastBuild ? `<lastBuildDate>${lastBuild.toUTCString()}</lastBuildDate>` : ""}

@@ -19,7 +19,7 @@ import type { Node as PMNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import type { LanguageToolMatch } from "@/lib/admin/types";
-import { siteLocaleTag } from "@/lib/i18n/config";
+import { TEXT_LANGUAGE_LT, type TextLanguage } from "@/lib/i18n/config";
 
 export type LTKind = "spelling" | "grammar" | "style";
 
@@ -41,6 +41,8 @@ export type LTStatus =
 export type LanguageToolOptions = {
   enabled: boolean;
   endpoint: string;
+  /** The post language (read on every check, so a change applies at once). Default: Russian. */
+  getLanguage?: () => TextLanguage;
   onStatus?: (status: LTStatus) => void;
   /** Called when the user clicks an underlined range. `rect` is in viewport coordinates. */
   onOpen?: (issue: LTIssue, rect: { left: number; top: number; bottom: number }) => void;
@@ -52,6 +54,8 @@ declare module "@tiptap/core" {
       setLanguageToolEnabled: (enabled: boolean) => ReturnType;
       /** Re-apply ignore list / dictionary (after they changed). */
       refreshLanguageTool: () => ReturnType;
+      /** The post language changed: drop stale marks and re-check the text in the new language. */
+      languageToolLanguageChanged: () => ReturnType;
       ignoreLanguageToolIssue: (issue: LTIssue) => ReturnType;
       addToLanguageToolDictionary: (word: string) => ReturnType;
     };
@@ -157,7 +161,6 @@ const SEPARATOR = "\n\n";
 export class LTController {
   private view: EditorView;
   private options: LanguageToolOptions;
-  private lang: string;
   private cache = new Map<string, LanguageToolMatch[]>();
   private pending = new Set<string>();
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -174,10 +177,20 @@ export class LTController {
   constructor(view: EditorView, options: LanguageToolOptions) {
     this.view = view;
     this.options = options;
-    // Posts are always written in Russian (readers use browser translation for other languages).
-    this.lang = siteLocaleTag;
     this.dictionary = readSet(DICT_KEY);
     this.ignored = readSet(IGNORE_KEY);
+  }
+
+  /** LanguageTool code of the post's language (ru-RU / en-US / fr). Part of every cache key. */
+  get lang(): string {
+    return TEXT_LANGUAGE_LT[this.options.getLanguage?.() ?? "ru"];
+  }
+
+  /** The post language was switched: show nothing stale, then check everything again. */
+  languageChanged() {
+    if (this.destroyed) return;
+    this.rebuild(); // keys include the language → no cached matches for the new one → marks disappear
+    if (this.enabled) this.schedule(100);
   }
 
   get enabled(): boolean {
@@ -442,6 +455,12 @@ export const LanguageTool = Extension.create<LanguageToolOptions, { controller: 
         () =>
         () => {
           this.storage.controller?.rebuild();
+          return true;
+        },
+      languageToolLanguageChanged:
+        () =>
+        () => {
+          this.storage.controller?.languageChanged();
           return true;
         },
       ignoreLanguageToolIssue:

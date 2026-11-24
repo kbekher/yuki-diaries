@@ -2,13 +2,19 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { RotateCcw } from "lucide-react";
 import ru from "@/lib/i18n/dictionaries/ru";
+import en from "@/lib/i18n/dictionaries/en";
+import { localePath, splitLocale } from "@/lib/i18n/ui";
 
-// Only the small `error` slice of the dictionary is needed here.
-const t = ru.error;
+// Only the small `error` slice of each dictionary is needed here.
+const messages = { ru: ru.error, en: en.error };
 
 export default function Error({ error, retry }: { error: unknown; retry: () => void }) {
+  const { lang } = splitLocale(usePathname());
+  const t = messages[lang];
+
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -30,7 +36,7 @@ export default function Error({ error, retry }: { error: unknown; retry: () => v
           <span>{t.retry}</span>
         </button>
         <Link
-          href="/"
+          href={localePath(lang, "/")}
           className="pill pill-ghost"
         >
           {t.home}
